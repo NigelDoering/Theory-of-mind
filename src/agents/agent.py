@@ -78,7 +78,13 @@ class Agent:
 
     def plan_path(self, planner, **planner_kwargs):
         """
-        Use a given planner (e.g., an instance of PathPlanner) to compute a path from the agent's start to its goal.
-        Additional planner parameters can be passed as keyword arguments.
+        Use a given planner to compute a path from the agent's start to its goal.
+        
+        Parameters:
+            planner: A path planner object that implements the plan method.
+            **planner_kwargs: Additional parameters to pass to the planner.
+            
+        Returns:
+            A planned path as a list of (x, y) positions, or None if no path found.
         """
         return planner.plan(self.start, self.goal, **planner_kwargs) 
