@@ -3,6 +3,7 @@ import numpy as np
 from matplotlib.colors import ListedColormap
 import matplotlib.animation as animation
 from matplotlib.patches import Ellipse
+import os
 
 class PlannerVisualizer:
     """
@@ -258,24 +259,27 @@ class PlannerVisualizer:
         # Capture figure for animation
         self.frames.append((fig, ax))
         
-        # Close figure to avoid memory issues
-        plt.close(fig)
+        # We're creating figures but never closing them - this is causing memory issues
+        # and potentially blank animations
+        plt.close(fig)  # Add this line to close the figure after capturing it
     
     def create_animation(self, filename=None, fps=5):
         """
         Create an animation from captured frames.
         
         Parameters:
-            filename: Optional filename to save the animation (e.g., 'animation.mp4').
-                      If None, the animation is just displayed.
+            filename: Optional filename to save the animation. Recommended formats are .gif or .mp4
+                      If .mp4 is used, ffmpeg must be installed. If None, the animation is just displayed.
             fps: Frames per second for the animation.
             
         Returns:
             The animation object.
         """
         if not self.frames:
-            print("No frames to animate!")
+            print("No frames to animate! The callback may not have been called correctly.")
             return None
+        
+        print(f"Creating animation with {len(self.frames)} frames at {fps} fps")
         
         # Create figure for animation
         fig, ax = plt.subplots(figsize=(10, 10))
@@ -283,27 +287,68 @@ class PlannerVisualizer:
         # Function to update the animation
         def update(frame_idx):
             ax.clear()
+            print(f"Rendering frame {frame_idx} of {len(self.frames)}")
             frame_fig, frame_ax = self.frames[frame_idx]
             
             # Copy content from the frame's axis
-            frame_ax.figure.canvas.draw()
-            img = np.array(frame_ax.figure.canvas.renderer.buffer_rgba())
-            ax.imshow(img)
-            ax.set_axis_off()
+            try:
+                frame_ax.figure.canvas.draw()
+                img = np.array(frame_ax.figure.canvas.renderer.buffer_rgba())
+                ax.imshow(img)
+                ax.set_axis_off()
+            except Exception as e:
+                print(f"Error rendering frame {frame_idx}: {e}")
+                # Fall back to a basic visualization if the frame is corrupted
+                ax.text(0.5, 0.5, f"Frame {frame_idx}", 
+                       horizontalalignment='center', verticalalignment='center')
             
             return [ax]
         
-        # Create animation
-        ani = animation.FuncAnimation(
-            fig, update, frames=len(self.frames), 
-            blit=True, repeat=True, interval=1000/fps
-        )
+        try:
+            # Create animation
+            ani = animation.FuncAnimation(
+                fig, update, frames=len(self.frames), 
+                blit=True, repeat=True, interval=1000/fps
+            )
+            
+            # Save animation if filename is provided
+            if filename:
+                print(f"Saving animation to {filename}...")
+                
+                # Ensure directory exists
+                os.makedirs(os.path.dirname(filename) if os.path.dirname(filename) else '.', exist_ok=True)
+                
+                # Use a simple writer for GIF to avoid issues
+                if filename.endswith('.gif'):
+                    print("Using pillow writer for GIF")
+                    # For GIF format - use minimal settings for compatibility
+                    ani.save(filename, writer='pillow', fps=fps, dpi=100)
+                    print(f"Animation saved to {filename}")
+                else:
+                    print(f"WARNING: Unsupported format. Saving as GIF instead.")
+                    gif_filename = filename.split('.')[0] + '.gif'
+                    ani.save(gif_filename, writer='pillow', fps=fps, dpi=100)
+                    print(f"Animation saved as {gif_filename}")
+                
+                # Verify the file was created and has content
+                if os.path.exists(filename):
+                    file_size = os.path.getsize(filename)
+                    print(f"File {filename} was created with size {file_size} bytes")
+                    if file_size < 1000:
+                        print("WARNING: File size is suspiciously small!")
+                else:
+                    print(f"ERROR: File {filename} was not created!")
+                
+        except Exception as e:
+            print(f"Error creating or saving animation: {e}")
+            import traceback
+            traceback.print_exc()
         
-        # Save animation if filename is provided
-        if filename:
-            ani.save(filename)
+        plt.close(fig)
         
-        plt.close()
+        # Clear frames to free memory
+        # self.frames = []
+        
         return ani
     
     def visualize_multiple_planners(self, planners, start, goal, paths=None, titles=None):

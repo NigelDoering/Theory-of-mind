@@ -136,6 +136,16 @@ def compare_sampling_based_planners(world, start, goal):
         if planner_type == "fmt_star":
             kwargs['num_samples'] = 1000
             
+        # When testing closed_loop_rrt_star
+        if planner_type == "closed_loop_rrt_star":
+            kwargs.update({
+                'max_iterations': 1000,
+                'goal_sample_rate': 0.3,
+                'step_size': 5.0,
+                'goal_threshold': 5.0,  # Increasing the threshold for easier goal reaching
+                'timeout': 90.0         # Adding a timeout to prevent infinite loops
+            })
+        
         # Measure planning time
         start_time = time.time()
         path = planner.plan(start, goal, **kwargs)
@@ -149,10 +159,10 @@ def compare_sampling_based_planners(world, start, goal):
     
     # Create titles with time and path length information
     titles = []
-    for i, (p_type, path, t) in enumerate(zip(planner_types, paths, times)):
-        if path:
-            path_length = sum(np.sqrt((path[i+1][0]-path[i][0])**2 + (path[i+1][1]-path[i][1])**2) 
-                             for i in range(len(path)-1))
+    for p_type, path, t in zip(planner_types, paths, times):
+        if path and len(path) > 1:
+            path_length = sum(np.sqrt((path[j+1][0]-path[j][0])**2 + (path[j+1][1]-path[j][1])**2) 
+                            for j in range(len(path)-1))
             titles.append(f"{p_type} ({t:.2f}s, len: {path_length:.1f})")
         else:
             titles.append(f"{p_type} ({t:.2f}s, no path)")
@@ -173,24 +183,37 @@ def demonstrate_interactive_planning(world, start, goal):
     # Create visualizer
     visualizer = PlannerVisualizer(world)
     
+    # Make sure frames list is empty
+    visualizer.frames = []
+    print("Initial frame count:", len(visualizer.frames))
+    
     # Create BIT* planner for demonstration
     planner = PlannerZone.create_planner("bit_star", world)
     
-    # Set up callback
-    callback = visualizer.callback_for_animation
+    # Set up callback with debug
+    def debug_callback(nodes, path, iteration, message=None):
+        print(f"Callback called - iteration {iteration}, nodes: {len(nodes) if nodes else 0}, path: {'Yes' if path else 'No'}")
+        visualizer.callback_for_animation(nodes, path, iteration, message)
+        print(f"Frames after callback: {len(visualizer.frames)}")
     
     # Run interactive planning
     path = planner.interactive_plan(
         start, goal, 
-        callback=callback,
-        batch_size=50,
-        max_batches=5
+        callback=debug_callback,
+        batch_size=20,  # Smaller batch size
+        max_batches=10  # More batches
     )
     
-    # Create animation
-    animation = visualizer.create_animation(filename="bit_star_animation.mp4", fps=5)
+    # Check frames before creating animation
+    print(f"Total frames captured: {len(visualizer.frames)}")
     
-    print(f"Interactive planning complete. Animation saved to bit_star_animation.mp4")
+    # Create animation - use GIF directly to avoid MP4 issues
+    if visualizer.frames:
+        print(f"Creating animation with {len(visualizer.frames)} frames")
+        animation = visualizer.create_animation(filename="bit_star_animation.gif", fps=2)  # Slower FPS
+        print(f"Animation created and saved to bit_star_animation.gif")
+    else:
+        print("No animation frames were captured. Check if the callback is working properly.")
     
     return path
 
@@ -279,27 +302,65 @@ def main():
     # Create world
     world = create_sample_world()
     
-    # Display the world
-    world.display_world()
-    plt.savefig("world.png")
+    # Fix: Use correct attribute names
+    start = world.starting_space[0]  # Changed from starting_positions to starting_space
+    goal = world.goal_space[0]       # Changed from goals to goal_space
     
-    # Define start and goal positions
-    start = (5, 5)
-    goal = (95, 95)
+    # # Compare search-based planners
+    # search_planners, search_paths, search_times = compare_search_based_planners(world, start, goal)
     
-    # Compare search-based planners
-    search_planners, search_paths, search_times = compare_search_based_planners(world, start, goal)
+    # # Compare sampling-based planners
+    # sampling_planners, sampling_paths, sampling_times = compare_sampling_based_planners(world, start, goal)
     
-    # Compare sampling-based planners
-    sampling_planners, sampling_paths, sampling_times = compare_sampling_based_planners(world, start, goal)
+    # # Create visualizer
+    # visualizer = PlannerVisualizer(world)
+    
+    # # Generate search-based planner titles
+    # search_titles = []
+    # for p_type, path, t in zip(["a_star", "dijkstra", "bfs", "dfs", "best_first",
+    #                         "bidirectional_a_star", "ara_star", "lpa_star", "lrta_star",
+    #                         "rtaa_star", "d_star_lite", "d_star"], search_paths, search_times):
+    #     if path and len(path) > 1:
+    #         path_length = sum(np.sqrt((path[j+1][0]-path[j][0])**2 + (path[j+1][1]-path[j][1])**2) 
+    #                        for j in range(len(path)-1))
+    #         search_titles.append(f"{p_type} ({t:.2f}s, len: {path_length:.1f})")
+    #     else:
+    #         search_titles.append(f"{p_type} ({t:.2f}s, no path)")
+    
+    # # Generate sampling-based planner titles
+    # sampling_titles = []
+    # planner_types = [
+    #     "rrt", "rrt_star", "rrt_connect", "informed_rrt_star", 
+    #     "rrt_star_smart", "fmt_star", "bit_star", "dynamic_rrt",
+    #     "anytime_rrt_star", "closed_loop_rrt_star", "spline_rrt_star"
+    # ]
+    # for p_type, path, t in zip(planner_types, sampling_paths, sampling_times):
+    #     if path and len(path) > 1:
+    #         path_length = sum(np.sqrt((path[j+1][0]-path[j][0])**2 + (path[j+1][1]-path[j][1])**2) 
+    #                        for j in range(len(path)-1))
+    #         sampling_titles.append(f"{p_type} ({t:.2f}s, len: {path_length:.1f})")
+    #     else:
+    #         sampling_titles.append(f"{p_type} ({t:.2f}s, no path)")
+    
+    # # Visualize search-based planners
+    # fig1 = visualizer.visualize_multiple_planners(search_planners, start, goal, search_paths, search_titles)
+    # fig1.suptitle("Search-Based Planners Comparison", fontsize=16)
+    # plt.tight_layout()
+    # plt.savefig("search_based_comparison.png", bbox_inches='tight')
+    # plt.close(fig1)
+    
+    # # Visualize sampling-based planners
+    # fig2 = visualizer.visualize_multiple_planners(sampling_planners, start, goal, sampling_paths, sampling_titles)
+    # fig2.suptitle("Sampling-Based Planners Comparison", fontsize=16)
+    # plt.tight_layout()
+    # plt.savefig("sampling_based_comparison.png", bbox_inches='tight')
+    # plt.close(fig2)
     
     # Demonstrate interactive planning
     interactive_path = demonstrate_interactive_planning(world, start, goal)
     
     # Demonstrate goal inference
-    gi_path, goal_probs, predicted_traj = demonstrate_goal_inference(world, start, goal)
-    
-    print("All demonstrations completed. Check the generated images and animations.")
+    inferred_goal = demonstrate_goal_inference(world, start, goal)
 
 if __name__ == "__main__":
     main() 

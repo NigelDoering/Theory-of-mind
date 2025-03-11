@@ -537,9 +537,15 @@ class BITStarPlanner(BasePlanner):
         # Initialize
         self.initialize(start, goal)
         
+        # For tracking progress and visualization
+        total_edges_processed = 0
+        total_iterations = 0
+        
         # Call callback with initial state
         if callback:
+            print("Calling initial callback")
             callback(self.vertices, None, 0, "Initial state")
+            total_iterations += 1
         
         # Main loop - process batches
         for batch in range(self.max_batches):
@@ -572,10 +578,14 @@ class BITStarPlanner(BasePlanner):
             
             # Call callback after adding new samples
             if callback:
-                callback(self.vertices, self.get_path(), batch, f"Batch {batch}: Added {len(new_samples)} samples")
+                print(f"Calling sample callback for batch {batch}")
+                callback(self.vertices, self.get_path(), total_iterations,
+                       f"Batch {batch}: Added {len(new_samples)} samples")
+                total_iterations += 1
             
             # Process the graph
             edge_count = 0
+            
             while (self.queue_vertices or self.queue_edges) and \
                   (not self.queue_edges or self.queue_vertices and self.queue_vertices[0].f <= self.queue_edges[0].f):
                 
@@ -585,6 +595,9 @@ class BITStarPlanner(BasePlanner):
                     self.expand_vertex(v)
                 
                 # Process the next edge if the queue is not empty and the best vertex has higher cost
+                edge_processing_count = 0
+                max_edges_per_callback = 5  # Process fewer edges before each callback
+                
                 while self.queue_edges and (not self.queue_vertices or self.queue_edges[0].f <= self.queue_vertices[0].f):
                     # Get the next edge
                     edge = heapq.heappop(self.queue_edges)
@@ -599,28 +612,52 @@ class BITStarPlanner(BasePlanner):
                     # Add the end vertex to the queue
                     heapq.heappush(self.queue_vertices, edge.end)
                     
-                    # If this edge improved the solution, update c_best and setup ellipsoid
-                    if edge.end == self.goal_node and edge.g + edge.c < self.c_best:
-                        self.c_best = edge.g + edge.c
-                        self.setup_ellipsoid()
-                    
-                    # Call callback periodically
                     edge_count += 1
-                    if callback and edge_count % 20 == 0:  # Call every 20 edges to avoid slowdown
-                        callback(self.vertices, self.get_path(), batch, f"Batch {batch}: Processing edges")
+                    total_edges_processed += 1
+                    edge_processing_count += 1
+                    
+                    # Call callback more frequently during edge processing
+                    if callback and edge_processing_count >= max_edges_per_callback:
+                        print(f"Calling edge processing callback at edge {edge_count}")
+                        current_path = self.get_path()
+                        callback(self.vertices, current_path, total_iterations,
+                               f"Batch {batch}: Processing edges ({edge_count} processed)")
+                        total_iterations += 1
+                        edge_processing_count = 0
+                
+                # Periodically call callback during vertex processing too
+                if callback and edge_count % 20 == 0:
+                    print(f"Calling periodic callback during vertex processing")
+                    current_path = self.get_path()
+                    callback(self.vertices, current_path, total_iterations, 
+                           f"Batch {batch}: Vertex expansion")
+                    total_iterations += 1
             
-            # Call callback after processing batch
+            # Call callback after processing all edges in this batch
             if callback:
-                callback(self.vertices, self.get_path(), batch, f"Batch {batch}: Complete, c_best = {self.c_best:.2f}")
-            
-            # If we found a solution and the batch did not improve it, we can stop
-            if batch > 0 and self.goal_node.in_tree and self.goal_node.sample_batch < batch:
-                break
+                print(f"Calling batch completion callback for batch {batch}")
+                current_path = self.get_path()
+                callback(self.vertices, current_path, total_iterations,
+                       f"Batch {batch}: Completed ({edge_count} edges processed)")
+                total_iterations += 1
+                
+            # Check if we have a solution
+            if self.goal_node.in_tree:
+                # Return the solution path
+                path = self.get_path()
+                
+                # Final callback
+                if callback:
+                    print("Calling solution found callback")
+                    callback(self.vertices, path, total_iterations, 
+                           f"Solution found after {batch+1} batches")
+                    total_iterations += 1
+                
+                return path
         
-        # Call callback with final state
+        # No solution found
         if callback:
-            final_path = self.get_path()
-            callback(self.vertices, final_path, self.max_batches, "Final state")
+            print("Calling final no solution callback")
+            callback(self.vertices, None, total_iterations, "No solution found")
         
-        # Return the final path
-        return self.get_path()
+        return None

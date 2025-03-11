@@ -112,4 +112,6 @@ class World(Simulation):
         ax.set_xticks([])
         ax.set_yticks([])
         ax.set_title("2D World Representation")
-        plt.show() 
+        plt.savefig("world.png")
+        plt.show()
+        

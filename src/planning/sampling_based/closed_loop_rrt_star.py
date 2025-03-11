@@ -1,6 +1,7 @@
 import numpy as np
 import random
 import math
+import time
 from src.planning.base_planner import BasePlanner
 from src.planning.sampling_based.rrt import RRTNode
 from src.planning.sampling_based.rrt_star import RRTStarPlanner
@@ -398,6 +399,11 @@ class ClosedLoopRRTStarPlanner(BasePlanner):
         self.goal_threshold = kwargs.get('goal_threshold', self.goal_threshold)
         self.search_radius = kwargs.get('search_radius', self.search_radius)
         self.rewire_factor = kwargs.get('rewire_factor', self.rewire_factor)
+        self.step_size = kwargs.get('step_size', self.step_size)
+        
+        # Add timeout parameter (default: 10 seconds)
+        timeout = kwargs.get('timeout', 10.0)
+        start_time = time.time()
         
         # Create start and goal states
         start_theta = kwargs.get('start_theta', 0.0)
@@ -418,6 +424,11 @@ class ClosedLoopRRTStarPlanner(BasePlanner):
         
         # Main loop
         for i in range(self.max_iterations):
+            # Check for timeout
+            if time.time() - start_time > timeout:
+                print(f"Timeout reached after {i} iterations")
+                break
+            
             # Sample random state
             random_state = self.random_state()
             

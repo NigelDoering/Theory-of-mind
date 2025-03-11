@@ -32,41 +32,26 @@ class SplineRRTStarPlanner(RRTStarPlanner):
     
     def generate_spline(self, from_pos, to_pos, via_point=None):
         """
-        Generate a cubic spline from from_pos to to_pos.
-        Optionally uses a via_point to control the shape of the spline.
-        
+        Generate a cubic spline from from_pos to to_pos, optionally going through via_point.
         Returns a list of points along the spline.
         """
-        # If no via_point is provided, create one
+        # Extract control points
         if via_point is None:
-            # Create a via point perpendicular to the line from from_pos to to_pos
-            dx = to_pos[0] - from_pos[0]
-            dy = to_pos[1] - from_pos[1]
+            # Create a midpoint as the via point if not provided
+            mid_x = (from_pos[0] + to_pos[0]) / 2
+            mid_y = (from_pos[1] + to_pos[1]) / 2
             
-            # Calculate perpendicular direction
-            if abs(dx) < 1e-6 and abs(dy) < 1e-6:
-                # If points are too close, use a random direction
-                angle = random.uniform(0, 2 * np.pi)
-                perp_x = np.cos(angle)
-                perp_y = np.sin(angle)
-            else:
-                # Normalize and rotate 90 degrees
-                length = np.sqrt(dx**2 + dy**2)
-                perp_x = -dy / length
-                perp_y = dx / length
+            # Add some randomness to midpoint
+            rand_offset = self.step_size / 2
+            mid_x += random.uniform(-rand_offset, rand_offset)
+            mid_y += random.uniform(-rand_offset, rand_offset)
             
-            # Create via point at the midpoint with a small offset
-            offset = min(2.0, length / 4)  # Limit offset to avoid extreme curves
-            mid_x = (from_pos[0] + to_pos[0]) / 2 + offset * perp_x
-            mid_y = (from_pos[1] + to_pos[1]) / 2 + offset * perp_y
-            
-            via_point = (int(round(mid_x)), int(round(mid_y)))
+            via_point = (mid_x, mid_y)
         
-        # Create spline using three points
+        # Extract coordinates
         x = [from_pos[0], via_point[0], to_pos[0]]
         y = [from_pos[1], via_point[1], to_pos[1]]
         
-        # Parameter t for interpolation
         t = np.linspace(0, 1, 3)
         t_fine = np.linspace(0, 1, self.spline_resolution)
         
@@ -77,8 +62,9 @@ class SplineRRTStarPlanner(RRTStarPlanner):
         # Sample points along the spline
         spline_points = []
         for ti in t_fine:
-            xi = int(round(cs_x(ti)))
-            yi = int(round(cs_y(ti)))
+            # Fix: Extract scalar values from numpy arrays before rounding
+            xi = int(round(float(cs_x(ti))))
+            yi = int(round(float(cs_y(ti))))
             spline_points.append((xi, yi))
         
         return spline_points
