@@ -1,0 +1,184 @@
+building_id,x,y,name
+1,4935,1605,Preuss School Buildings A-F C8 Athletic & Recreation Facilities
+2,3522,1849,Canyonview Aquatics and Activities Center D6
+3,1745,3051,LionTree Arena C4
+4,2136,703,Northview Tennis Courts A4
+5,2189,2251,Main Gym E4
+6,2097,2259,Natatorium E4
+7,2294,1206,RIMAC Annex B4
+8,2288,803,Outback Adventures B4
+9,2192,2310,Recreation Gymnasium E4
+11,2293,666,Spanos Athletic Performance Center and Training Facility A4
+12,4351,1718,Triton Ballpark & Clubhouse D7
+16,2710,1751,Geisel Library D5
+17,2214,1439,Robinson Library C4
+18,2802,2450,Sally T. WongAvery Library E5 Medical Clinics/Health Sciences East
+20,4256,2003,Altman Clinical and Translational Research Institute D7
+23,4849,2028,Hamilton Glaucoma and Joan and Irwin Jacobs Retina Center D8
+26,5143,1983,Medical Center Modular Building 1 D9
+27,5073,1973,Medical Center Modular Building 2 D9
+28,4534,2143,Perlman Medical Offices E8
+29,5100,2043,Radiation Oncology PET/CT Center D9
+30,4735,2011,Ratner Children’s Eye Center D8
+31,4797,2149,Rebecca and John Moores Cancer Center E8
+32,4797,1977,Shiley Eye Institute D8
+33,4167,2345,East Campus Office Building E7 Parking Structures
+34,4944,1998,Athena Parking Structure D8
+35,4490,1890,Campus Point Parking Structure East D8
+36,4350,1962,Campus Point Parking Structure West D7
+37,3280,2216,Gilman Parking Structure E6
+38,2454,1454,Hopkins Parking Structure C4
+39,4830,2338,Mesa Canyon Parking Structure E8
+40,4654,2473,Ola Parking Structure E8
+41,4467,2677,One Miramar Street Parking Garage F8
+42,1917,1406,Pangea Parking Structure C3
+43,2128,1873,Scholars Parking Structure D4
+44,2761,2637,South Parking Structure F5
+46,3832,1633,Campus Services Complex - Building B C6
+47,3832,1548,Campus Services Complex - Building C C6
+48,3832,1466,Campus Services Complex - Building D C6
+50,3882,1607,Campus Services Complex - Electric Shops C7
+51,3921,1478,Fleet Services C7
+52,3846,1382,Transit Operations C6
+53,3892,1419,Environmental Management Facility C7
+56,3879,1552,"Storehouse, Custodial, and Shops C7"
+57,5201,1908,Triton Transit Operations D9 Theatre and Music
+58,3119,2157,Conrad Prebys Music Center E5
+59,3333,2019,Epstein Family Amphiteater D6
+60,2175,2991,Mandell Weiss Theatre F4
+61,2257,2964,La Jolla Playhouse F4
+64,2261,2851,Shank Theatre F4 Research
+65,3799,1253,Biology Field Station C6
+68,3072,1937,Powell Structural Components Laboratory D5
+69,3078,1972,Science and Engineering Research Facility D5
+70,2104,2735,Podemos F4
+71,1941,2765,Pulse F3
+72,2095,2803,Sankofa F4
+73,1917,2822,Azad F3
+74,1925,2876,Survivance F3 Eleanor Roosevelt Housing
+75,1938,2917,Theatre District Parking Structure F3 Operations
+80,2169,1242,Gildred Latin American Studies Building C4
+81,2083,1443,Great Hall C4
+82,2222,1286,Institute of the Americas Building C4
+83,2218,1352,Robinson Administration C4
+84,2244,1396,Robinson Auditorium C4
+85,2359,1402,San Diego Supercomputer Center C4
+86,2319,1462,Social Sciences Building C4
+87,2083,1406,Asante House C4
+88,2083,1356,Cuzco House C4
+89,1880,1177,Africa Hall B3
+90,1880,1213,Asia Hall B3
+92,1958,1315,Earth Hall South C3
+93,1880,1261,Europe Hall C3
+94,1880,1300,Latin America Hall C3
+96,1880,1346,North America Hall C3
+97,1997,1326,Oceania Hall C3
+99,2083,1315,Kathmandu House C4
+100,2156,1193,1800 E6
+101,3068,2609,Israni Biomedical Research Facility F5
+102,2918,2440,Biomedical Sciences Building E5
+103,2694,2352,Cellular and Molecular Medicine East E5
+104,2615,2426,Center for Neural Circuits and Behavior E4
+105,2905,2714,Central Research Services F5
+106,3192,2577,Clinical Research Facility F5
+107,2592,2372,George Palade Laboratories for Cellular and Molecular Medicine E4
+108,3160,2611,Guava F5
+110,3170,2644,Ivy F5
+112,3075,2688,Kalmia F5
+113,3077,2723,Laurel F5
+114,2827,2319,Leichtag Family Foundation Biomedical Research Building E5
+115,3117,2731,Magnolia F5
+116,3124,2495,T. Denny Sanford Medical Education and Telemedicine E5
+117,3019,2445,Medical Teaching Facility E5
+118,3056,2822,Rita Atkinson Residences F5
+119,3219,2500,School of Medicine: Buildings 1-4 E5
+120,2974,2615,Skaggs Pharmaceutical Sciences Building F5
+121,3213,2395,Stein Clinical Research Building E5
+122,2896,2517,W.M. Keck Building E5
+124,5106,2858,Mesa Housing South: 9100-9192 F9
+125,5145,2731,Mesa Housing Central: 9226-9270 F9
+128,4225,2651,"One Miramar Street, Bldg 3 F7"
+129,4322,2627,"One Miramar Street, Bldg 4 F7"
+130,4387,2651,"One Miramar Street, Bldg 5 F7"
+133,4861,2453,Mesa Nueva: Cala E8
+135,4778,2583,Mesa Nueva: Marea F8
+137,5170,2496,Nuevo East: Capa E9
+138,5410,2574,Nuevo East: Exchange F9
+140,5057,2461,Nuevo East: Piedra E9
+143,4560,2477,Nuevo West: Marketplace E8
+145,2210,2001,Applied Physics and Mathematics D4
+147,2415,2009,Faculty Club D4
+148,2119,2092,Humanities and Social Sciences D4
+149,2450,2180,Mandeville Center E4
+150,2051,1997,Mandler Hall D3
+153,2404,2257,"Student Center A: Buildings A, C, F, G, H, EN, ES E4"
+154,2525,2251,Student Center B E4 Muir Housing
+155,2011,2117,Tamarack Apartments E3
+156,1933,1981,Tenaya Hall D3
+157,1880,2029,Tioga Hall D3
+158,1899,2110,Tuolumne Apartments E3 North Campus
+159,2120,515,10350 North Torrey Pines Road A4
+160,1992,456,3333 North Torrey Pines Court A3
+163,2121,442,3377 North Torrey Pines Court A4
+164,2004,566,Torrey Pines Center North A3
+165,1924,660,Torrey Pines Center South A3
+166,2174,1113,Otterson Hall B4
+167,1791,793,Sanford Consortium B3
+168,2091,1066,Wells Fargo Hall B4 Pepper Canyon
+169,3462,1989,Design and Innovation Building D6
+173,3402,1934,Structural and Materials Engineering D6
+174,3229,2027,Visual Arts Facility - Buildings 1-6 D6 Pepper Canyon Housing
+175,3633,2050,Matthews Apartments: A-E D6
+176,3791,2161,Pepper Canyon Apartments:
+177,2080,2546,64 degrees E4
+178,2308,2389,Bonner Hall E4
+179,2468,2791,Che Cafe F4
+180,2225,2654,Galbraith Hall F4
+181,1929,2571,HDH Administration Building F3
+182,2370,2474,Mayer Hall E4
+183,1984,2478,Natural Sciences Building E3
+184,2047,2408,Pacific Hall E3
+185,2142,2355,Tata Hall E4
+186,2181,2443,Urey Hall E4
+187,2211,2487,Urey Hall Addition E4
+192,2133,2528,Blake Hall E4
+195,1901,2648,Charles David Keeling Apt 2 F3
+196,1951,2681,Charles David Keeling Apt 3 F3
+197,2089,2625,Discovery Hall F4
+200,2115,962,Seventh College East: #1-6 B4
+201,1970,942,Seventh College West: #1-8 B3 Sixth College
+202,2217,1885,Arts & Humanities D4
+203,2217,1847,Ridge Walk Academic Complex D4
+204,2217,1809,Social Sciences Public Engagement D4
+205,2177,1922,The Jeannie D4 Sixth College Housing
+210,2447,1856,Cognitive Science Building D4
+211,2321,1736,Communication Building D4
+212,1879,1659,Extended Studies Complex: Buildings A-Z C3
+213,2325,1917,Peterson Hall D4
+214,2340,1844,Social Sciences Research Building D4
+215,2415,1804,Solis Lecture Hall D4 Thurgood Marshall Housing
+216,2172,1535,Marshall Upper Apartments: Grassroots to Movement C4
+217,1916,1496,Marshall Residence Halls: Narrative to Solidarity C3 Warren
+218,3125,1608,Atkinson Hall C5
+220,3291,1685,Computer Science and Engineering Building D6
+221,3286,1770,Engineering Building Unit II D6
+222,3094,1485,Franklin Antonio Hall C5
+223,3251,1846,Halicioğlu Data Science Institute D5
+224,3039,1715,Jacobs Hall /Engineering Building Unit I D5
+225,3084,1826,Powell Structural Systems Lab Expansion D5
+226,3163,1710,Powell-Focht Bioengineering Hall D5
+227,3409,1788,University Center 611 D6
+228,3163,1854,Warren Lecture Hall D6
+229,3312,1624,Warren Student Activity Center C6 Warren Housing
+231,3400,1655,Black Apartments C6
+232,3420,1581,Brennan Apartments C6
+235,3372,1387,Frankfurter Hall C6
+236,3228,1542,Goldberg Apartments C5
+237,3451,1345,Harlan Hall C6
+238,3439,1397,Stewart Hall C6 University Center
+244,3112,2032,University Center 409 D5
+245,3131,2241,University Center 965 E5
+246,2742,2118,214 University Center E5
+247,2770,2092,215 University Center D5
+248,2650,2116,Career Services Center E4
+249,2774,2165,Center Hall E5
