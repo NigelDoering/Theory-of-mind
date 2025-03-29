@@ -2,7 +2,7 @@
 
 > A comprehensive framework for simulating and analyzing agent behaviors with Theory of Mind capabilities in both abstract and realistic environments. This project is designed to support research on Theory of Mind models by MOSAIC LAB, UCSD.
 
-[![Python 3.10+](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/)
+[![Python 3.10+](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/)
 [![OSMnx](https://img.shields.io/badge/OSMnx-enabled-green.svg)](https://github.com/gboeing/osmnx)
 [![NetworkX](https://img.shields.io/badge/NetworkX-powered-orange.svg)](https://networkx.org/)
 
