@@ -22,9 +22,9 @@ class Agent:
         self.visited_nodes = []
         
         # For position interpolation
-        self.position = None
+        self.position = None  # This will be set during reset
         self.progress = 0.0
-        
+    
     def reset(self):
         """Reset the agent to a random start and goal."""
         if self.environment is None:
@@ -125,6 +125,11 @@ class Agent:
         """Get current position for visualization."""
         if node is not None:
             return self.environment.get_node_coordinates(node)
+        
+        # Ensure we always return a valid position
+        if self.position is None and self.current_node is not None:
+            self.position = self.environment.get_node_coordinates(self.current_node)
+            
         return self.position
         
     def get_path_coordinates(self):

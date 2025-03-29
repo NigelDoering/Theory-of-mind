@@ -175,3 +175,9 @@ cython_debug/
 
 # Ignore all pycache files from all the folders
 **/__pycache__/*
+
+cache/
+
+# ignore all visuals in teh real_world_src except for teh first one
+real_world_src/visuals/[2-9]*/
+real_world_src/visuals/[1-9][0-9]*/

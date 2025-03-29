@@ -5,8 +5,8 @@ from .agent_base import Agent
 class ShortestPathAgent(Agent):
     """Agent that always takes the shortest path."""
     
-    def __init__(self, id=None):
-        super().__init__(id, color='blue')
+    def __init__(self, id=None, color=None):
+        super().__init__(id, color=color or 'blue')
         self.species = "ShortestPath"
         
     def plan_path(self):
@@ -25,8 +25,8 @@ class ShortestPathAgent(Agent):
 class RandomWalkAgent(Agent):
     """Agent that performs a biased random walk toward the goal."""
     
-    def __init__(self, id=None):
-        super().__init__(id, color='red')
+    def __init__(self, id=None, color=None):
+        super().__init__(id, color=color or 'red')
         self.species = "RandomWalk"
         self.planning_horizon = 3  # Steps to look ahead
         
@@ -77,8 +77,8 @@ class RandomWalkAgent(Agent):
 class LandmarkAgent(Agent):
     """Agent that navigates via landmarks."""
     
-    def __init__(self, id=None):
-        super().__init__(id, color='green')
+    def __init__(self, id=None, color=None):
+        super().__init__(id, color=color or 'green')
         self.species = "Landmark"
         self.current_landmark = None
         
@@ -154,8 +154,8 @@ class LandmarkAgent(Agent):
 class SocialAgent(Agent):
     """Agent that follows other agents sometimes."""
     
-    def __init__(self, id=None):
-        super().__init__(id, color='purple')
+    def __init__(self, id=None, color=None):
+        super().__init__(id, color=color or 'purple')
         self.species = "Social"
         self.follow_target = None
         self.follow_duration = 0
@@ -198,6 +198,218 @@ class SocialAgent(Agent):
                                            source=self.current_node, 
                                            target=self.goal_node, 
                                            weight='length')
+            self.path_index = 0
+            
+        except nx.NetworkXNoPath:
+            print(f"{self.id}: No path found!")
+            self.path = [self.current_node]
+
+
+class ExplorerAgent(Agent):
+    """Agent that prefers to explore less-traveled paths."""
+    
+    def __init__(self, id=None, color=None):
+        super().__init__(id, color=color or 'orange')
+        self.species = "Explorer"
+        self.global_visited_edges = {}  # Track visited edges across all resets
+        
+    def plan_path(self):
+        """Plan path preferring less-traveled edges."""
+        try:
+            # Create a weighted graph copy where weights are adjusted by visit count
+            G_weighted = self.environment.G_undirected.copy()
+            
+            # Adjust edge weights based on visit counts
+            for u, v, data in G_weighted.edges(data=True):
+                edge_key = (min(u, v), max(u, v))  # Undirected edge key
+                visit_count = self.global_visited_edges.get(edge_key, 0)
+                
+                # Original weight is length
+                original_weight = data.get('length', 1.0)
+                
+                # New weight penalizes previously visited edges
+                new_weight = original_weight * (1.0 + 0.5 * visit_count)
+                
+                # Update weight
+                G_weighted[u][v]['weight'] = new_weight
+            
+            # Find path with adjusted weights
+            self.path = nx.shortest_path(G_weighted, 
+                                       source=self.current_node, 
+                                       target=self.goal_node, 
+                                       weight='weight')
+            self.path_index = 0
+            
+            # Record the edges we're going to use
+            for i in range(len(self.path) - 1):
+                u, v = self.path[i], self.path[i+1]
+                edge_key = (min(u, v), max(u, v))
+                self.global_visited_edges[edge_key] = self.global_visited_edges.get(edge_key, 0) + 1
+                
+        except nx.NetworkXNoPath:
+            print(f"{self.id}: No path found!")
+            self.path = [self.current_node]
+    
+    def reset(self):
+        """Reset the agent but keep the edge history."""
+        super().reset()
+        # Note: We don't reset global_visited_edges to maintain exploration history
+
+
+class ObstacleAvoidingAgent(Agent):
+    """Agent that avoids obstacles and congested areas."""
+    
+    def __init__(self, id=None, color=None):
+        super().__init__(id, color=color or '#8B008B')  # Dark magenta
+        self.species = "ObstacleAvoider"
+        self.obstacle_threshold = 3  # Consider an area congested if several agents recently visited
+        self.memory_time = 20  # Remember obstacles for this many steps
+        self.obstacle_memory = {}  # Map of node to time last seen congested
+        
+    def plan_path(self):
+        """Plan path that avoids congested areas."""
+        current_step = len(self.visited_nodes)
+        
+        try:
+            # Update obstacle memory by observing agent locations
+            if self.environment.agents:
+                # Find clusters of agents
+                agent_positions = {}
+                for agent in self.environment.agents:
+                    if agent != self and agent.current_node:
+                        agent_positions[agent.current_node] = agent_positions.get(agent.current_node, 0) + 1
+                
+                # Mark congested nodes as obstacles
+                for node, count in agent_positions.items():
+                    if count >= self.obstacle_threshold:
+                        self.obstacle_memory[node] = current_step
+            
+            # Clean up old obstacle memories
+            nodes_to_remove = []
+            for node, last_seen in self.obstacle_memory.items():
+                if current_step - last_seen > self.memory_time:
+                    nodes_to_remove.append(node)
+            for node in nodes_to_remove:
+                del self.obstacle_memory[node]
+            
+            # Create a graph with penalized obstacle areas
+            G_weighted = self.environment.G_undirected.copy()
+            
+            # Add high weights to obstacle areas
+            for node in self.obstacle_memory:
+                for u, v, data in G_weighted.edges(data=True):
+                    if u == node or v == node:
+                        data['weight'] = data.get('length', 1.0) * 5.0  # 5x penalty
+            
+            # Find path with adjusted weights
+            self.path = nx.shortest_path(G_weighted, 
+                                       source=self.current_node, 
+                                       target=self.goal_node, 
+                                       weight='weight')
+            self.path_index = 0
+            
+        except nx.NetworkXNoPath:
+            print(f"{self.id}: No path found!")
+            self.path = [self.current_node]
+
+
+class ScaredAgent(Agent):
+    """Agent that is afraid of high-traffic areas and seeks quiet routes."""
+    
+    def __init__(self, id=None, color=None):
+        super().__init__(id, color=color or '#9370DB')  # Medium purple
+        self.species = "Scared"
+        self.fear_radius = 3  # Distance within which other agents cause fear
+        self.fear_factor = 2.0  # How much to weight fear vs. distance
+        
+    def plan_path(self):
+        """Plan path avoiding high-traffic areas."""
+        try:
+            # Create a weighted graph with fear-based costs
+            G_weighted = self.environment.G_undirected.copy()
+            
+            # Calculate fear map - how many agents are near each node
+            fear_map = {}
+            for node in self.environment.nodes:
+                nearby_agents = 0
+                node_pos = self.environment.get_node_coordinates(node)
+                
+                for agent in self.environment.agents:
+                    if agent == self:
+                        continue
+                    
+                    # Add safety check for agent position
+                    agent_pos = agent.get_position()
+                    if agent_pos is None:
+                        continue
+                    
+                    # Now calculate distance safely
+                    distance = ((node_pos[0] - agent_pos[0])**2 + 
+                               (node_pos[1] - agent_pos[1])**2) ** 0.5
+                    
+                    if distance < self.fear_radius:
+                        nearby_agents += 1
+                
+                fear_map[node] = nearby_agents
+            
+            # Adjust weights based on fear
+            for u, v, data in G_weighted.edges(data=True):
+                fear_weight = (fear_map.get(u, 0) + fear_map.get(v, 0)) * self.fear_factor
+                data['weight'] = data.get('length', 1.0) * (1.0 + fear_weight)
+            
+            # Find path with adjusted weights
+            self.path = nx.shortest_path(G_weighted, 
+                                       source=self.current_node, 
+                                       target=self.goal_node, 
+                                       weight='weight')
+            self.path_index = 0
+            
+        except nx.NetworkXNoPath:
+            print(f"{self.id}: No path found!")
+            self.path = [self.current_node]
+
+
+class RiskyAgent(Agent):
+    """Agent that takes risky shortcuts even through congested areas."""
+    
+    def __init__(self, id=None, color=None):
+        super().__init__(id, color=color or '#FF4500')  # OrangeRed
+        self.species = "Risky"
+        self.shortcut_probability = 0.4  # Probability of trying a shortcut
+        self.speed = 1.5  # Moves faster than other agents
+        
+    def plan_path(self):
+        """Plan a path that might include risky shortcuts."""
+        try:
+            # First get the standard shortest path
+            shortest_path = nx.shortest_path(self.environment.G_undirected, 
+                                           source=self.current_node, 
+                                           target=self.goal_node, 
+                                           weight='length')
+            
+            # Should we try a shortcut?
+            if random.random() < self.shortcut_probability and len(shortest_path) >= 3:
+                # Try to find a riskier but potentially shorter path
+                # We'll use Euclidean distance rather than road length
+                G_euclid = self.environment.G_undirected.copy()
+                
+                for u, v, data in G_euclid.edges(data=True):
+                    u_pos = self.environment.get_node_coordinates(u)
+                    v_pos = self.environment.get_node_coordinates(v)
+                    euclid_dist = ((u_pos[0] - v_pos[0])**2 + (u_pos[1] - v_pos[1])**2) ** 0.5
+                    data['weight'] = euclid_dist * 0.8  # Favor straighter lines
+                
+                try:
+                    shortcut_path = nx.shortest_path(G_euclid, 
+                                                  source=self.current_node, 
+                                                  target=self.goal_node, 
+                                                  weight='weight')
+                    self.path = shortcut_path
+                except:
+                    self.path = shortest_path
+            else:
+                self.path = shortest_path
+                
             self.path_index = 0
             
         except nx.NetworkXNoPath:

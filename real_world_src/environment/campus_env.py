@@ -1,3 +1,4 @@
+from ..utils.config import VISUAL_CONFIG
 import osmnx as ox
 import networkx as nx
 import numpy as np
@@ -71,23 +72,45 @@ class CampusEnvironment:
                 pass  # Handle edges that might not exist
         return length
     
-    def visualize_map(self, show_landmarks=True):
-        """Visualize the campus map."""
-        fig, ax = ox.plot_graph(self.G, figsize=(15, 15), node_size=5, 
-                               edge_color="#444444", show=False)
+    def visualize_map(self, show_landmarks=True, ax=None):
+        """Visualize the campus map.
+        
+        Args:
+            show_landmarks: Whether to highlight landmark nodes
+            ax: Optional matplotlib axis to plot on
+            
+        Returns:
+            fig, ax: The figure and axis objects
+        """
+        if ax is None:
+            fig, ax = ox.plot_graph(self.G, figsize=(15, 15), node_size=5, 
+                                 edge_color=VISUAL_CONFIG["edge_color"], show=False)
+        else:
+            # Plot graph on existing axis
+            fig = ax.figure
+            ox.plot_graph(self.G, ax=ax, node_size=5, 
+                        edge_color=VISUAL_CONFIG["edge_color"], show=False)
         
         # Add buildings
         if self.buildings is not None:
-            self.buildings.plot(ax=ax, color='lightgrey', alpha=0.7, edgecolor='dimgrey')
+            self.buildings.plot(ax=ax, color=VISUAL_CONFIG["building_color"], 
+                             alpha=0.7, edgecolor=VISUAL_CONFIG["building_edge"])
         
         # Highlight landmark nodes
         if show_landmarks:
             landmark_x = [self.node_coords[node][0] for node in self.landmarks]
             landmark_y = [self.node_coords[node][1] for node in self.landmarks]
-            ax.scatter(landmark_x, landmark_y, c='red', s=100, zorder=5, label="Landmarks")
-            
-        plt.title("UCSD Campus Environment")
-        plt.tight_layout()
+            ax.scatter(landmark_x, landmark_y, 
+                     c=VISUAL_CONFIG["landmark_color"], 
+                     s=VISUAL_CONFIG["sizes"]["landmark"], 
+                     marker=VISUAL_CONFIG["markers"]["landmark"],
+                     zorder=5, label="Landmarks")
+        
+        # Only add title and tight_layout if we created a new figure
+        if ax is None:
+            plt.title("UCSD Campus Environment")
+            plt.tight_layout()
+        
         return fig, ax
     
     def add_agent(self, agent):
