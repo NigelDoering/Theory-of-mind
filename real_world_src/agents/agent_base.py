@@ -25,11 +25,16 @@ class Agent:
         self.position = None  # This will be set during reset
         self.progress = 0.0
     
-    def reset(self):
-        """Reset the agent to a random start and goal."""
+    def reset(self, randomize_position=True):
+        """Reset the agent to a random start and goal.
+        
+        Args:
+            randomize_position: Boolean, whether to randomize the start/goal positions.
+                                Always True in the current implementation.
+        """
         if self.environment is None:
             raise ValueError("Agent must be added to an environment before reset")
-            
+        
         # Random start and goal nodes
         self.start_node = self.environment.get_random_node()
         

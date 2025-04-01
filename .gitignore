@@ -181,3 +181,7 @@ cache/
 # ignore all visuals in teh real_world_src except for teh first one
 real_world_src/visuals/[2-9]*/
 real_world_src/visuals/[1-9][0-9]*/
+
+# Completely ignore these folders
+real_world_src/tom_results/
+real_world_src/visuals/

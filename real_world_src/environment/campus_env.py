@@ -1,4 +1,9 @@
-from ..utils.config import VISUAL_CONFIG
+import os
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+# from ..utils.config import VISUAL_CONFIG
+from real_world_src.utils.config import VISUAL_CONFIG
 import osmnx as ox
 import networkx as nx
 import numpy as np
@@ -69,7 +74,7 @@ class CampusEnvironment:
                 if edge_data and 'length' in edge_data[0]:
                     length += edge_data[0]['length']
             except:
-                pass  # Handle edges that might not exist
+                pass  # Yet to handle edges that might not exist
         return length
     
     def visualize_map(self, show_landmarks=True, ax=None):
@@ -113,6 +118,10 @@ class CampusEnvironment:
         
         return fig, ax
     
+    def plot_map(self, ax=None, show_landmarks=True):
+        """Alias for visualize_map to maintain compatibility with visualization functions."""
+        return self.visualize_map(show_landmarks=show_landmarks, ax=ax)
+    
     def add_agent(self, agent):
         """Add an agent to the environment."""
         self.agents.append(agent)
@@ -131,3 +140,22 @@ class CampusEnvironment:
     def all_agents_done(self):
         """Check if all agents have reached their goals."""
         return all(agent.at_goal() for agent in self.agents)
+    
+
+if __name__ == "__main__":
+    campus = CampusEnvironment()
+    campus.visualize_map()
+
+    node_1 = campus.get_random_node()
+    node_2 = campus.get_random_node()
+    node_c_1 = campus.get_node_coordinates(node_1)
+    node_c_2 = campus.get_node_coordinates(node_2)
+
+    print(f"Node 1: {node_1} at {node_c_1}")
+    print(f"Node 2: {node_2} at {node_c_2}")
+
+    path = nx.shortest_path(campus.G, source=node_1, target=node_2)
+    path_length = campus.get_path_length(path)
+
+    print(f"Shortest path from {node_1} to {node_2}: {path}")
+    print(f"Path length: {path_length}")

@@ -17,6 +17,21 @@ class Simulator:
         else:
             self.run_manager = RunManager(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'visuals'))
         
+        # Initialize the trajectory collector attribute
+        self.trajectory_collector = None
+        
+        # Initialize step counter
+        self.current_step = 0
+    
+    def set_trajectory_collector(self, collector):
+        """
+        Set a trajectory collector to record agent movements during simulation.
+        
+        Args:
+            collector: TrajectoryCollector instance
+        """
+        self.trajectory_collector = collector
+    
     def _get_animation_filename(self, name, species=None):
         """
         Generate a filename for an animation within the current run folder.
@@ -35,11 +50,37 @@ class Simulator:
             
         return self.run_manager.get_animation_path(filename)
     
-    def run_simulation(self, max_steps=300, animate=True, save_animation=False):
-        """Run the simulation with all agents in the environment."""
+    def step(self):
+        """Execute one time step of the simulation."""
+        # Step the environment
+        self.environment.step()
         
+        # Record trajectories if collector is set
+        if hasattr(self, 'trajectory_collector') and self.trajectory_collector:
+            for agent in self.environment.agents:
+                self.trajectory_collector.record_state(agent)
+        
+        # Increment step counter
+        self.current_step += 1
+    
+    def run_simulation(self, max_steps=1000, animate=False, save_animation=False):
+        """
+        Run the simulation until all agents reach their goals or max_steps is reached.
+        
+        Args:
+            max_steps: Maximum number of steps to run
+            animate: Whether to show animation during simulation
+            save_animation: Whether to save the animation to a file
+        """
         # Reset all agents
         self.environment.reset_agents()
+        
+        # Reset step counter
+        self.current_step = 0
+        
+        # Add trajectory collector reset at the start
+        if hasattr(self, 'trajectory_collector') and self.trajectory_collector:
+            self.trajectory_collector.reset()
         
         if animate:
             # Set up visualization with enhanced styling
@@ -107,7 +148,7 @@ class Simulator:
                     return [scatter] + paths + [timestamp_text]
                     
                 if frame > 0:  # Skip the first frame
-                    self.environment.step()
+                    self.step()
                     
                 # Update agent positions
                 agent_positions = np.array([agent.get_position() for agent in self.environment.agents])
@@ -212,16 +253,20 @@ class Simulator:
                 anim.save(animation_path, writer='pillow', fps=10, dpi=120)
                 print(f"Animation saved successfully to {animation_path}")
             
-            plt.show(block=True)  # Use block=True to ensure the plot window blocks until closed
+            plt.show(block=False)  # Use block=True to ensure the plot window blocks until closed
             
         else:
             # Non-animated version
             step = 0
             while not self.environment.all_agents_done() and step < max_steps:
-                self.environment.step()
+                self.step()
                 step += 1
                 
             print(f"Simulation completed in {step} steps")
+            
+            # Finalize trajectory collection at the end
+            if hasattr(self, 'trajectory_collector') and self.trajectory_collector:
+                self.trajectory_collector.finalize_episode()
             
             # Visualize final state
             self.visualize_final_state()

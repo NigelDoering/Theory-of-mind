@@ -295,7 +295,16 @@ def animate_species_grid(environment, agents, title="Species Navigation Patterns
     """
     Create an animated grid layout showing all species navigating simultaneously.
     """
-    # Import required libraries first to check availability
+    # Import required libraries
+    import matplotlib
+    import os
+    import numpy as np
+    from matplotlib import animation
+    import matplotlib.pyplot as plt
+    from .config import VISUAL_CONFIG
+    from matplotlib.lines import Line2D
+    
+    # Try to import imageio
     try:
         import imageio
         HAS_IMAGEIO = True
@@ -303,6 +312,13 @@ def animate_species_grid(environment, agents, title="Species Navigation Patterns
     except ImportError:
         HAS_IMAGEIO = False
         print("Warning: imageio not found. Install with 'pip install imageio' for better animations")
+    
+    # Force Agg backend explicitly for this function
+    matplotlib.use('Agg')
+    
+    # Pre-determine frame capture method - ALWAYS use renderer method
+    # This avoids the repeated fallback messages
+    use_renderer_method = True
     
     # Group agents by species
     species_groups = {}
@@ -481,7 +497,7 @@ def animate_species_grid(environment, agents, title="Species Navigation Patterns
             agent.reset()
         
         # Use fewer frames for complex grid animations to avoid memory issues
-        actual_max_frames = min(max_frames, 60)  # Limit to 60 frames for grid animation
+        actual_max_frames = min(max_frames, 30)  # Reduced from 60 to 30 frames
         
         # Create a list to store frames
         frames = []
@@ -493,7 +509,7 @@ def animate_species_grid(environment, agents, title="Species Navigation Patterns
             
             for frame in range(actual_max_frames):
                 # Print progress
-                if frame % (actual_max_frames // 20) == 0:
+                if frame % (actual_max_frames // 10) == 0:
                     print("#", end="", flush=True)
                 
                 # Step the simulation (except for frame 0)
@@ -517,23 +533,44 @@ def animate_species_grid(environment, agents, title="Species Navigation Patterns
                 # Draw the figure
                 fig.canvas.draw()
                 
-                # Convert to image array
-                img = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8)
-                img = img.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+                # Use the renderer method directly without trying tostring_rgb() first
+                # This eliminates the repeated fallback messages
+                renderer = fig.canvas.get_renderer()
+                img = np.array(renderer.buffer_rgba())
+                # Convert RGBA to RGB
+                img = img[:,:,:3]
                 frames.append(img)
                 
                 # Check if all agents have reached their goals
                 if environment.all_agents_done():
                     print(f"\nAll agents reached their goals at step {frame}")
                     break
+                
+                # Memory management - clear some references
+                if frame % 10 == 0:
+                    import gc
+                    gc.collect()
             
             print("] Done!")
             
             # Save frames as GIF
             if HAS_IMAGEIO and frames:
                 print(f"Saving {len(frames)} frames as GIF...")
-                imageio.mimsave(save_path, frames, fps=10, loop=0)
-                print(f"✓ Animation saved successfully to {save_path}")
+                try:
+                    imageio.mimsave(save_path, frames, fps=10, loop=0)
+                    print(f"✓ Animation saved successfully to {save_path}")
+                except Exception as e:
+                    print(f"Error saving animation with imageio: {e}")
+                    # Try alternative save method
+                    try:
+                        print("Trying alternative save method...")
+                        imageio.v2.mimwrite(save_path, frames, fps=10, loop=0)
+                        print(f"✓ Animation saved successfully to {save_path}")
+                    except Exception as e2:
+                        print(f"Error with alternative save method: {e2}")
+                        # Save at least one frame
+                        fig.savefig(save_path.replace('.gif', '_static.png'), dpi=dpi)
+                        print(f"✓ Saved static visualization to {save_path.replace('.gif', '_static.png')}")
             else:
                 # Use PIL as fallback
                 try:
@@ -554,7 +591,6 @@ def animate_species_grid(environment, agents, title="Species Navigation Patterns
                     # Last resort: save at least one frame
                     fig.savefig(save_path.replace('.gif', '_static.png'), dpi=dpi)
                     print(f"✓ Saved static visualization to {save_path.replace('.gif', '_static.png')}")
-            
         except Exception as e:
             print(f"\nError during animation generation: {e}")
             # Save a static image as fallback
@@ -570,8 +606,8 @@ def animate_species_grid(environment, agents, title="Species Navigation Patterns
     return anim
 
 def animate_single_species(environment, agents, title="Species Navigation", 
-                         max_frames=300, interval=100, save_path=None, 
-                         dpi=100, enhanced=False):
+                          max_frames=300, interval=100, save_path=None, 
+                          dpi=100, enhanced=False):
     """
     Create an animated visualization of a single species.
     
@@ -588,6 +624,14 @@ def animate_single_species(environment, agents, title="Species Navigation",
     Returns:
         The animation object
     """
+    # Force Agg backend for non-interactive image generation
+    import matplotlib
+    matplotlib.use('Agg')
+    
+    # Reduce max frames for memory efficiency
+    if max_frames > 1000:
+        max_frames = 1000  # Cap at 1000 frames
+    
     # Setup the figure and axis
     fig, ax = plt.subplots(figsize=(12, 10))
     
@@ -755,6 +799,11 @@ def animate_single_species(environment, agents, title="Species Navigation",
     def update(frame):
         nonlocal completion_reported
         
+        # Memory management - periodically run garbage collection
+        if frame % 50 == 0:
+            import gc
+            gc.collect()
+        
         # Reset all agents to their initial state
         if frame == 0:
             for agent in agents:
@@ -803,5 +852,160 @@ def animate_single_species(environment, agents, title="Species Navigation",
         # Save with higher quality
         anim.save(save_path, writer='pillow', fps=10, dpi=dpi)
         print(f"Animation saved to {save_path}")
+    
+    return anim
+
+def visualize_tom_predictions(environment, tom_agent, title="Theory of Mind Predictions"):
+    """Visualize a ToM agent's predictions of other agents' movements."""
+    import matplotlib.pyplot as plt
+    import numpy as np
+    
+    fig, ax = plt.subplots(figsize=(12, 10))
+    
+    # Draw environment
+    environment.plot_map(ax=ax)
+    
+    # Draw actual agent positions
+    for agent in environment.agents:
+        if agent.id != tom_agent.id:
+            pos = agent.get_position()
+            ax.scatter(pos[0], pos[1], color=agent.color, s=100, 
+                      edgecolor='white', linewidth=2, zorder=10)
+            
+            # Draw the agent's actual path
+            path_x, path_y = agent.get_path_coordinates()
+            ax.plot(path_x, path_y, color=agent.color, linewidth=2, alpha=0.7)
+    
+    # Draw ToM agent position
+    pos = tom_agent.get_position()
+    ax.scatter(pos[0], pos[1], color=tom_agent.color, s=150, 
+              marker='*', edgecolor='white', linewidth=2, zorder=15)
+    
+    # Draw ToM agent's predictions
+    for agent_id, predicted_path in tom_agent.other_agents_predictions.items():
+        # Find the agent
+        agent = next((a for a in environment.agents if a.id == agent_id), None)
+        if not agent:
+            continue
+            
+        # Draw predicted path (as a dotted line)
+        if predicted_path:
+            path_coords = [environment.get_node_position(node) for node in predicted_path]
+            path_x = [coord[0] for coord in path_coords]
+            path_y = [coord[1] for coord in path_coords]
+            
+            # Use the agent's color but with dashed line
+            ax.plot(path_x, path_y, color=agent.color, linewidth=2, 
+                   linestyle='--', alpha=0.7)
+    
+    # Add a legend
+    from matplotlib.lines import Line2D
+    legend_elements = [
+        Line2D([0], [0], color='gray', linewidth=2, label='Actual Path'),
+        Line2D([0], [0], linestyle='--', color='gray', linewidth=2, label='Predicted Path'),
+    ]
+    ax.legend(handles=legend_elements, loc='upper right')
+    
+    # Set title and return figure
+    ax.set_title(title, fontsize=16)
+    return fig, ax
+
+def animate_tom_predictions(environment, tom_agent, title="Theory of Mind in Action", 
+                         max_frames=300, interval=100, save_path=None, dpi=100):
+    """Create an animation showing ToM agent's predictions over time."""
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    import matplotlib.animation as animation
+    import numpy as np
+    import os
+    
+    fig, ax = plt.subplots(figsize=(12, 10))
+    
+    # Draw environment once
+    environment.plot_map(ax=ax)
+    
+    # Initialize collections for all agents
+    agents = environment.agents
+    agent_scatters = []
+    agent_paths = []
+    prediction_lines = []
+    
+    # Create scatter and line for each agent
+    for agent in agents:
+        # Scatter for position
+        scatter = ax.scatter(
+            *agent.get_position(), 
+            color=agent.color, s=100 if agent.id != tom_agent.id else 150,
+            marker='o' if agent.id != tom_agent.id else '*',
+            edgecolor='white', linewidth=2, zorder=10
+        )
+        agent_scatters.append(scatter)
+        
+        # Line for actual path
+        path_x, path_y = [], []
+        path_line, = ax.plot(path_x, path_y, color=agent.color, linewidth=2, alpha=0.7)
+        agent_paths.append(path_line)
+        
+        # Line for predicted path (only for non-ToM agents)
+        if agent.id != tom_agent.id:
+            pred_line, = ax.plot([], [], color=agent.color, linewidth=2, 
+                               linestyle='--', alpha=0.7)
+            prediction_lines.append((agent.id, pred_line))
+    
+    # Add timestamp
+    timestamp_text = ax.text(0.02, 0.98, "Step: 0", transform=ax.transAxes, 
+                           fontsize=12, verticalalignment='top')
+    
+    # Add a legend
+    from matplotlib.lines import Line2D
+    legend_elements = [
+        Line2D([0], [0], color='gray', linewidth=2, label='Actual Path'),
+        Line2D([0], [0], linestyle='--', color='gray', linewidth=2, label='Predicted Path'),
+        Line2D([0], [0], marker='*', color='gray', markersize=10, linestyle='None', 
+              label='ToM Agent')
+    ]
+    ax.legend(handles=legend_elements, loc='upper right')
+    
+    # Set title
+    ax.set_title(title, fontsize=16)
+    
+    # Animation update function
+    def update(frame):
+        # Step the environment
+        environment.step()
+        
+        # Update agent positions and paths
+        for i, agent in enumerate(agents):
+            pos = agent.get_position()
+            agent_scatters[i].set_offsets([pos])
+            
+            path_x, path_y = agent.get_path_coordinates()
+            agent_paths[i].set_data(path_x, path_y)
+        
+        # Update predicted paths
+        for agent_id, pred_line in prediction_lines:
+            if agent_id in tom_agent.other_agents_predictions:
+                predicted_path = tom_agent.other_agents_predictions[agent_id]
+                if predicted_path:
+                    path_coords = [environment.get_node_position(node) for node in predicted_path]
+                    path_x = [coord[0] for coord in path_coords]
+                    path_y = [coord[1] for coord in path_coords]
+                    pred_line.set_data(path_x, path_y)
+        
+        # Update timestamp
+        timestamp_text.set_text(f"Step: {frame}")
+        
+        return agent_scatters + agent_paths + [pred_line for _, pred_line in prediction_lines] + [timestamp_text]
+    
+    # Create animation
+    anim = animation.FuncAnimation(
+        fig, update, frames=max_frames, interval=interval, blit=True
+    )
+    
+    # Save if path is provided
+    if save_path:
+        print(f"Saving ToM animation to {save_path}...")
+        anim.save(save_path, dpi=dpi)
     
     return anim
