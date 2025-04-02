@@ -63,7 +63,7 @@ def main():
     
     # Step 4: Run simulations to collect trajectory data
     print("\nStep 4: Running simulations to collect trajectory data...")
-    num_episodes = 10  # Number of episodes to run for data collection
+    num_episodes = 100  # Number of episodes to run for data collection
     
     for episode in range(num_episodes):
         print(f"\nRunning episode {episode+1}/{num_episodes}...")
@@ -106,7 +106,7 @@ def main():
     model = trainer.train(
         trajectory_collector=trajectory_collector,
         batch_size=32,
-        epochs=20
+        epochs=50
     )
     
     # Save the trained model
@@ -157,7 +157,7 @@ def main():
     simulator.set_trajectory_collector(trajectory_collector)
     
     # Enable animation for this test run
-    simulator.run_simulation(max_steps=50, animate=True, save_animation=True)
+    simulator.run_simulation(max_steps=1000, animate=True, save_animation=True)
     
     # Step 9: Visualize ToM predictions
     print("\nStep 9: Visualizing ToM predictions...")
@@ -178,7 +178,7 @@ def main():
     animate_tom_predictions(
         campus, tom_agent, 
         title="Theory of Mind in Action", 
-        max_frames=100,
+        max_frames=1000,
         interval=100,
         save_path=tom_anim_path,
         dpi=200

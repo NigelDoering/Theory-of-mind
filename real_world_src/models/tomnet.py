@@ -41,27 +41,41 @@ class CharacterNetwork(nn.Module):
         return character_embedding
 
 class MentalStateNetwork(nn.Module):
-    """Analyzes recent observations to infer current mental state."""
-    def __init__(self, input_dim, hidden_dim, output_dim):
+    """Analyzes recent observations to infer current mental state, 
+    incorporating character traits."""
+    def __init__(self, input_dim, hidden_dim, output_dim, char_dim):
         super(MentalStateNetwork, self).__init__()
         self.lstm = nn.LSTM(input_dim, hidden_dim, batch_first=True)
-        self.fc1 = nn.Linear(hidden_dim, hidden_dim)
+        
+        # Add layers to process character information with recent trajectory
+        self.char_fc = nn.Linear(char_dim, hidden_dim)
+        self.attention = nn.Linear(hidden_dim * 2, 1)
+        
+        # Layers to compute final mental state
+        self.fc1 = nn.Linear(hidden_dim * 2, hidden_dim)
         self.fc2 = nn.Linear(hidden_dim, output_dim)
         
-    def forward(self, recent_trajectory):
+    def forward(self, recent_trajectory, character):
         """
         Args:
             recent_trajectory: Tensor of shape [batch_size, seq_len, input_dim]
                 containing the recent movements in the current episode
+            character: Character embedding from CharacterNetwork [batch_size, char_dim]
         """
-        # Process through LSTM
-        _, (h_n, _) = self.lstm(recent_trajectory)
+        # Process recent trajectory through LSTM
+        lstm_out, (h_n, _) = self.lstm(recent_trajectory)  # lstm_out: [batch, seq, hidden]
         
         # Get the final hidden state
-        mental_state = h_n.squeeze(0)  # Shape: [batch_size, hidden_dim]
+        trajectory_features = h_n.squeeze(0)  # [batch_size, hidden_dim]
         
-        # Process through fully connected layers with ReLU activation
-        mental_state = F.relu(self.fc1(mental_state))
+        # Process character embedding
+        char_features = F.relu(self.char_fc(character))  # [batch_size, hidden_dim]
+        
+        # Compute attention weights based on character + trajectory features
+        combined = torch.cat([trajectory_features, char_features], dim=1)
+        
+        # Integrate character traits with trajectory understanding
+        mental_state = F.relu(self.fc1(combined))
         mental_state = self.fc2(mental_state)
         
         return mental_state
@@ -107,18 +121,23 @@ class ToMNet(nn.Module):
                  output_dim=5, seq_len=5):
         super(ToMNet, self).__init__()
         self.character_net = CharacterNetwork(input_dim, hidden_dim, char_dim)
-        self.mental_state_net = MentalStateNetwork(input_dim, hidden_dim, mental_dim)
+        self.mental_state_net = MentalStateNetwork(input_dim, hidden_dim, mental_dim, char_dim)
         self.prediction_net = PredictionNetwork(
             char_dim, mental_dim, state_dim, hidden_dim, output_dim, seq_len)
         
     def forward(self, past_trajectories, recent_trajectory, current_state):
         """
         Args:
-            past_trajectories: Multiple past episodes of behavior
-            recent_trajectory: Recent movements in the current episode
-            current_state: Current environment state
+            past_trajectories: Multiple past episodes of behavior [batch, num_trajs, seq_len, features]
+            recent_trajectory: Recent movements in current episode [batch, seq_len, features]
+            current_state: Current environment state [batch, state_dim]
         """
+        # First extract character traits from past trajectories
         character = self.character_net(past_trajectories)
-        mental_state = self.mental_state_net(recent_trajectory)
+        
+        # Then use character traits to help infer mental state from recent trajectory
+        mental_state = self.mental_state_net(recent_trajectory, character)
+        
+        # Finally, predict future actions based on character, mental state, and current state
         predictions = self.prediction_net(character, mental_state, current_state)
         return predictions

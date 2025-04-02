@@ -229,7 +229,7 @@ class ExplorerAgent(Agent):
                 
                 # New weight penalizes previously visited edges
                 new_weight = original_weight * (1.0 + 0.5 * visit_count)
-                
+
                 # Update weight
                 G_weighted[u][v]['weight'] = new_weight
             

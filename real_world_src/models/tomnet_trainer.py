@@ -35,7 +35,7 @@ class TrajectoryDataset(Dataset):
     def _process_trajectories(self, trajectories):
         """Convert trajectory list to fixed-length tensor."""
         # For simplicity, just use the state encodings
-        # In a full implementation, you'd need to handle variable length sequences
+        # In a full implementation, we need to handle variable length sequences
         max_traj_len = 20
         max_num_trajs = 5
         
@@ -186,9 +186,7 @@ class ToMNetTrainer:
                     self.optimizer.zero_grad()
                     output = self.model(past_tensor, recent_tensor, current_state)
                     
-                    # Make sure output and target have same dimensions
-                    # Output should now be [batch_size, seq_len, output_dim]
-                    # Target is [batch_size, seq_len, feature_dim]
+                    # Output and target are both [batch_size, seq_len, output_dim]
                     pred_steps = min(output.shape[1], target.shape[1], 5)
                     
                     # Explicitly print shapes for debugging

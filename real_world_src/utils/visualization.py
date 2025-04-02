@@ -950,7 +950,7 @@ def animate_tom_predictions(environment, tom_agent, title="Theory of Mind in Act
         # Line for predicted path (only for non-ToM agents)
         if agent.id != tom_agent.id:
             pred_line, = ax.plot([], [], color=agent.color, linewidth=2, 
-                               linestyle='--', alpha=0.7)
+                               linestyle='-.', alpha=0.7)
             prediction_lines.append((agent.id, pred_line))
     
     # Add timestamp
