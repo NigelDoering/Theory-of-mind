@@ -137,3 +137,58 @@ class ToMAgent(Agent):
                     break
                     
         return traffic
+
+    def infer_goal_with_tomnet(self, observed_agent_id, model_path, experiment=1):
+        """
+        Infer the goal of an observed agent using the trained ToMNet model.
+        
+        Args:
+            observed_agent_id: ID of the agent to observe
+            model_path: Path to trained model checkpoint
+            experiment: Experiment number (1 or 2)
+            
+        Returns:
+            Dictionary with inference results
+        """
+        from real_world_src.utils.goal_inference_helper import GoalInferenceHelper
+        
+        # Check if the observed agent exists in our memory
+        if observed_agent_id not in self.observed_agents:
+            print(f"Agent {observed_agent_id} not observed yet")
+            return None
+        
+        # Get observed trajectory
+        observed_trajectory = self.observed_agents[observed_agent_id]['trajectory']
+        
+        if not observed_trajectory:
+            print(f"No trajectory observed for agent {observed_agent_id}")
+            return None
+        
+        # Get current state
+        current_state = self.environment.get_agent_state(observed_agent_id)
+        
+        if current_state is None:
+            print(f"Could not get current state for agent {observed_agent_id}")
+            return None
+        
+        # Create goal inference helper
+        helper = GoalInferenceHelper(
+            model_path=model_path,
+            experiment=experiment
+        )
+        
+        # Perform goal inference
+        results = helper.infer_goals(
+            past_trajectory=observed_trajectory,
+            query_state=current_state
+        )
+        
+        # Update our belief about the agent's goal
+        goal_idx = results['most_likely_object']
+        object_names = ['Library', 'Cafe', 'Dorm', 'Lab']  # Update based on your environment
+        inferred_goal = object_names[goal_idx]
+        
+        self.observed_agents[observed_agent_id]['inferred_goal'] = inferred_goal
+        self.observed_agents[observed_agent_id]['goal_probabilities'] = results['consumption_probs']
+        
+        return results

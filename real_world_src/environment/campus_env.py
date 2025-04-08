@@ -141,6 +141,16 @@ class CampusEnvironment:
         """Check if all agents have reached their goals."""
         return all(agent.at_goal() for agent in self.agents)
     
+    def get_all_shortest_paths(self):
+        """
+        Get dictionary of all shortest paths between all pairs of nodes.
+        Future-proof against NetworkX 3.5 change.
+        
+        Returns:
+            Dictionary mapping nodes to paths
+        """
+        return dict(nx.shortest_path(self.G))
+
 
 if __name__ == "__main__":
     campus = CampusEnvironment()
@@ -159,3 +169,5 @@ if __name__ == "__main__":
 
     print(f"Shortest path from {node_1} to {node_2}: {path}")
     print(f"Path length: {path_length}")
+
+    all_paths = dict(nx.shortest_path(campus.G))

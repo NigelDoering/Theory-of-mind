@@ -13,10 +13,35 @@ class TrajectoryCollector:
     def reset(self):
         """Reset current episode trajectories."""
         self.episode_buffers = {}
+    
+    def record_agent_trajectory(self, agent):
+        """
+        Record an agent's full trajectory at the end of an episode.
         
+        Args:
+            agent: Agent that has completed an episode
+        """
+        # Use the agent's built-in trajectory
+        if not agent.trajectory:
+            return
+            
+        agent_id = agent.id
+        species = agent.species
+        
+        # Initialize species in trajectories dict if needed
+        if species not in self.trajectories:
+            self.trajectories[species] = []
+            
+        # Store trajectory
+        self.trajectories[species].append(agent.trajectory)
+        
+        # Also store in episode buffer
+        self.episode_buffers[agent_id] = agent.trajectory
+    
     def record_state(self, agent):
         """
         Record the current state of an agent in the environment.
+        This is a legacy method - prefer using record_agent_trajectory.
         
         Args:
             agent: The agent to record
@@ -24,14 +49,19 @@ class TrajectoryCollector:
         if agent.id not in self.episode_buffers:
             self.episode_buffers[agent.id] = []
             
-        # Record only if agent has moved
-        if not self.episode_buffers[agent.id] or agent.position != self.episode_buffers[agent.id][-1]['position']:
-            current_state = self._encode_agent_state(agent)
-            self.episode_buffers[agent.id].append(current_state)
+        # Use the agent's most recent state-action pair if available
+        if agent.trajectory:
+            latest_state_action = agent.trajectory[-1]
             
-            # Trim if needed
-            if len(self.episode_buffers[agent.id]) > self.max_trajectory_length:
-                self.episode_buffers[agent.id].pop(0)
+            # Check if this is a new state
+            if not self.episode_buffers[agent.id] or latest_state_action[0]['position'] != self.episode_buffers[agent.id][-1]['position']:
+                # Encode the state
+                state_encoding = self._encode_agent_state(agent)
+                self.episode_buffers[agent.id].append(state_encoding)
+                
+                # Trim if needed
+                if len(self.episode_buffers[agent.id]) > self.max_trajectory_length:
+                    self.episode_buffers[agent.id].pop(0)
     
     def _encode_agent_state(self, agent):
         """
@@ -63,16 +93,17 @@ class TrajectoryCollector:
         }
         
         return state
-    
+        
     def finalize_episode(self):
         """
         Finalize the current episode and store completed trajectories.
         """
+        # This is now simpler since we're using the agent's built-in trajectories
         for agent_id, states in self.episode_buffers.items():
             if len(states) < 2:  # Need at least start and end
                 continue
                 
-            # Get agent species
+            # Get agent species from the first state
             species = states[0]['species']
             
             # Store trajectory by species

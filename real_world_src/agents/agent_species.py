@@ -32,6 +32,13 @@ class RandomWalkAgent(Agent):
         
     def plan_path(self):
         """Plan a biased random path that generally moves toward the goal."""
+        # Check for valid nodes first
+        if self.current_node is None or self.goal_node is None:
+            print(f"{self.id}: Cannot plan path - current_node or goal_node is None")
+            self.path = []
+            self.path_index = 0
+            return
+            
         try:
             # First get the shortest path as a reference
             shortest_path = nx.shortest_path(self.environment.G_undirected, 
@@ -45,6 +52,9 @@ class RandomWalkAgent(Agent):
             
             # Generate a few steps of random path with bias toward the goal
             for _ in range(self.planning_horizon):
+                if current is None:
+                    break
+                    
                 neighbors = list(self.environment.G_undirected.neighbors(current))
                 if not neighbors:
                     break
@@ -415,3 +425,68 @@ class RiskyAgent(Agent):
         except nx.NetworkXNoPath:
             print(f"{self.id}: No path found!")
             self.path = [self.current_node]
+
+
+class GoalDirectedAgent(Agent):
+    """Agent that moves toward goals based on preferences."""
+    
+    def __init__(self, agent_id=None, goal_preferences=None, rationality=1.0, color=None):
+        super().__init__(id=agent_id, color=color or '#1E90FF')  # Dodger blue
+        self.species = "GoalDirected"
+        self.goal_preferences = goal_preferences or {}
+        self.rationality = rationality  # Higher values mean more optimal behavior
+        
+    def plan_path(self):
+        """Plan path toward preferred goals."""
+        try:
+            # Default to shortest path if no preferences
+            self.path = nx.shortest_path(self.environment.G_undirected, 
+                                       source=self.current_node, 
+                                       target=self.goal_node, 
+                                       weight='length')
+            self.path_index = 0
+            
+        except nx.NetworkXNoPath:
+            print(f"{self.id}: No path found!")
+            self.path = [self.current_node]
+    
+    def get_action(self, state):
+        """
+        Get action based on current state and goal preferences.
+        
+        Args:
+            state: Current state from environment
+            
+        Returns:
+            Action to take (integer)
+        """
+        # First try to use the goal preferences
+        if self.goal_preferences and hasattr(state, 'available_actions'):
+            actions = state.available_actions
+            
+            # If no available actions, use default implementation
+            if not actions:
+                return super().get_action(state)
+                
+            # Choose action based on rationality
+            if random.random() < self.rationality:
+                # Find action that moves toward goal
+                best_action = actions[0]
+                best_distance = float('inf')
+                
+                for action in actions:
+                    # Estimate distance to goal after taking this action
+                    next_state = state.get_next_state(action)
+                    if hasattr(next_state, 'distance_to_goal'):
+                        distance = next_state.distance_to_goal()
+                        if distance < best_distance:
+                            best_distance = distance
+                            best_action = action
+                
+                return best_action
+            else:
+                # Random action
+                return random.choice(actions)
+        
+        # Fall back to standard path-based action selection
+        return super().get_action(state)

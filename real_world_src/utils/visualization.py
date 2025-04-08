@@ -242,19 +242,19 @@ def plot_species_grid(environment, agents, title="Species Comparison", save_path
                        linewidth=VISUAL_CONFIG["sizes"]["path_line"]*1.2, 
                        label=f"{agent.id}")
                 
-                # Plot start and goal with enhanced visibility
+                # Plot start and goal with enhanced visibility and no borders
                 start_x, start_y = agent.get_position(agent.start_node)
                 goal_x, goal_y = agent.get_position(agent.goal_node)
                 
                 ax.scatter([start_x], [start_y], color=agent.color, 
                           marker=VISUAL_CONFIG["markers"]["start"], 
                           s=VISUAL_CONFIG["sizes"]["start"]*1.2,
-                          edgecolor='black', linewidth=1.0, zorder=15)
+                          edgecolor='none', zorder=15)
                           
                 ax.scatter([goal_x], [goal_y], color=agent.color, 
                           marker=VISUAL_CONFIG["markers"]["goal"], 
                           s=VISUAL_CONFIG["sizes"]["goal"]*1.2,
-                          edgecolor='black', linewidth=1.0, zorder=15)
+                          edgecolor='none', zorder=15)
                           
         # Customize subplot
         ax.set_title(f"{species} Agents", fontsize=14)

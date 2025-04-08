@@ -24,33 +24,43 @@ class Agent:
         # For position interpolation
         self.position = None  # This will be set during reset
         self.progress = 0.0
+        
+        # For trajectory recording
+        self.trajectory = []  # List of (state, action) pairs
     
     def reset(self, randomize_position=True):
-        """Reset the agent to a random start and goal.
-        
-        Args:
-            randomize_position: Boolean, whether to randomize the start/goal positions.
-                                Always True in the current implementation.
-        """
+        """Reset the agent to a random start and goal."""
         if self.environment is None:
             raise ValueError("Agent must be added to an environment before reset")
         
         # Random start and goal nodes
-        self.start_node = self.environment.get_random_node()
-        
-        # Pick a goal node that's reasonably far from start
-        while True:
-            self.goal_node = self.environment.get_random_node()
-            try:
-                path = nx.shortest_path(self.environment.G_undirected, 
-                                       source=self.start_node, 
-                                       target=self.goal_node, 
-                                       weight='length')
-                if len(path) > 10:  # Make sure path is non-trivial
-                    break
-            except:
-                continue
+        max_attempts = 10
+        for _ in range(max_attempts):
+            self.start_node = self.environment.get_random_node()
+            
+            # Pick a goal node that's reasonably far from start
+            for __ in range(max_attempts):
+                self.goal_node = self.environment.get_random_node()
+                try:
+                    path = nx.shortest_path(self.environment.G_undirected, 
+                                          source=self.start_node, 
+                                          target=self.goal_node, 
+                                          weight='length')
+                    if len(path) > 10:  # Make sure path is non-trivial
+                        break
+                except:
+                    continue
+                    
+            # If we have both valid start and goal nodes, break
+            if self.goal_node and self.start_node:
+                break
                 
+        # If we couldn't find valid nodes, use defaults
+        if not self.start_node or not self.goal_node:
+            self.start_node = list(self.environment.nodes)[0]
+            self.goal_node = list(self.environment.nodes)[-1]
+            print(f"Warning: {self.id} using default nodes due to initialization failure")
+                    
         self.current_node = self.start_node
         self.next_node = None
         self.path = []
@@ -58,9 +68,25 @@ class Agent:
         self.visited_nodes = [self.current_node]
         self.position = self.environment.get_node_coordinates(self.current_node)
         self.progress = 0.0
+        self.trajectory = []  # Reset trajectory
         
         # Plan initial path
         self.plan_path()
+        
+        # Record initial state
+        initial_state = self._get_current_state()
+        initial_action = self.get_action(initial_state)
+        self.trajectory.append((initial_state, initial_action))
+        
+    def _get_current_state(self):
+        """Create a state representation of the agent's current situation."""
+        state = {
+            'position': self.position,
+            'current_node': self.current_node,
+            'goal_node': self.goal_node,
+            'visited_nodes': list(self.visited_nodes),  # Copy to avoid reference issues
+        }
+        return state
         
     def plan_path(self):
         """Plan a path from current node to goal. Override in subclasses."""
@@ -75,10 +101,19 @@ class Agent:
             self.path = [self.current_node]
             
     def step(self):
-        """Take a step toward the goal."""
+        """Take a step toward the goal and update trajectory."""
         if self.at_goal():
             return
             
+        # Get current state
+        current_state = self._get_current_state()
+        
+        # Determine action using get_action method
+        action = self.get_action(current_state)
+        
+        # Add to trajectory
+        self.trajectory.append((current_state, action))
+        
         # If we're between nodes, continue the interpolation
         if self.next_node is not None:
             # Update progress along the edge
@@ -151,3 +186,60 @@ class Agent:
             y_coords.append(self.position[1])
             
         return x_coords, y_coords
+
+    def get_action(self, state=None):
+        """
+        Get the action that leads to the next node in the agent's path.
+        
+        Args:
+            state: Current state (optional, used by some agent types)
+            
+        Returns:
+            action: Integer representing the action to take
+                0: up
+                1: right
+                2: down
+                3: left
+                4: stay
+        """
+        # If we've reached the goal, stay in place
+        if self.at_goal():
+            return 4  # Stay action
+            
+        # If we don't have a path or next node, plan one
+        if not self.path or len(self.path) <= 1 or self.path_index >= len(self.path) - 1:
+            self.plan_path()
+            # If we still don't have a valid path, stay in place
+            if not self.path or len(self.path) <= 1 or self.path_index >= len(self.path) - 1:
+                return 4  # Stay action
+        
+        # Get current position and next position from path
+        current_node = self.current_node
+        next_node = self.path[self.path_index + 1]
+        
+        # Get coordinates
+        current_pos = self.environment.get_node_coordinates(current_node)
+        next_pos = self.environment.get_node_coordinates(next_node)
+        
+        # Calculate direction vector
+        dx = next_pos[0] - current_pos[0]
+        dy = next_pos[1] - current_pos[1]
+        
+        # Convert to discrete action
+        # Priority: larger component determines the action
+        if abs(dx) > abs(dy):
+            return 1 if dx > 0 else 3  # Right or Left
+        elif abs(dy) > abs(dx):
+            return 0 if dy < 0 else 2  # Up or Down (y-axis may be inverted)
+        else:
+            # If equal components, choose based on sign
+            if dx > 0:
+                return 1  # Right
+            elif dx < 0:
+                return 3  # Left
+            elif dy < 0:
+                return 0  # Up
+            elif dy > 0:
+                return 2  # Down
+            else:
+                return 4  # Stay (should never happen in normal operation)

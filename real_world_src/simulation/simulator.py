@@ -338,3 +338,28 @@ class Simulator:
         print(f"Saved final state visualization to {final_state_path}")
         
         plt.show()
+    
+    def run_step(self):
+        """Run a single simulation step."""
+        # Update all agents
+        for agent in self.environment.agents:
+            agent.step()
+            
+            # Record state-action pair for trajectory collection
+            if self.trajectory_collector:
+                # We don't need to explicitly record here anymore
+                # as the agent now tracks its own trajectory
+                pass
+                
+        # Check if all agents have reached their goals
+        all_done = all(agent.at_goal() for agent in self.environment.agents)
+        
+        if all_done and self.trajectory_collector:
+            # Record full trajectories from each agent
+            for agent in self.environment.agents:
+                self.trajectory_collector.record_agent_trajectory(agent)
+                
+            # Finalize the episode in the trajectory collector
+            self.trajectory_collector.finalize_episode()
+            
+        return all_done

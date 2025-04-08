@@ -23,7 +23,7 @@
 <key id="d2" for="graph" attr.name="crs" attr.type="string"/>
 <key id="d1" for="graph" attr.name="created_with" attr.type="string"/>
 <key id="d0" for="graph" attr.name="created_date" attr.type="string"/>
-<graph edgedefault="directed"><data key="d0">2025-04-01 19:07:39</data>
+<graph edgedefault="directed"><data key="d0">2025-04-07 19:10:51</data>
 <data key="d1">OSMnx 2.0.2</data>
 <data key="d2">epsg:4326</data>
 <data key="d3">True</data>
@@ -27003,7 +27003,7 @@
   <data key="d8">[273477656, 331955025, 273477657, 225072239]</data>
   <data key="d9">unclassified</data>
   <data key="d13">2</data>
-  <data key="d14">['35 mph', '15 mph']</data>
+  <data key="d14">['15 mph', '35 mph']</data>
   <data key="d15">Hopkins Drive</data>
   <data key="d10">False</data>
   <data key="d11">True</data>
@@ -36935,7 +36935,7 @@
 <edge source="5390812819" target="7179685056" id="0">
   <data key="d8">[38063593, 960133771, 1066347150]</data>
   <data key="d9">tertiary</data>
-  <data key="d13">['1', '2', '3']</data>
+  <data key="d13">['2', '1', '3']</data>
   <data key="d14">25 mph</data>
   <data key="d15">Gilman Drive</data>
   <data key="d10">True</data>
@@ -46324,7 +46324,7 @@
 <edge source="6801459624" target="9642608260" id="0">
   <data key="d8">[960133764, 1341571133, 220416015]</data>
   <data key="d9">unclassified</data>
-  <data key="d13">['1', '2']</data>
+  <data key="d13">['2', '1']</data>
   <data key="d15">Medical Center Drive</data>
   <data key="d10">True</data>
   <data key="d11">False</data>
@@ -47388,7 +47388,7 @@
 <edge source="7179565953" target="9579010287" id="0">
   <data key="d8">[960133769, 558890431]</data>
   <data key="d9">tertiary</data>
-  <data key="d13">['2', '4']</data>
+  <data key="d13">['4', '2']</data>
   <data key="d14">20 mph</data>
   <data key="d15">Pepper Canyon Drive</data>
   <data key="d10">False</data>
@@ -57324,7 +57324,7 @@
   <data key="d8">[331955025, 273477657, 273477656, 225072239]</data>
   <data key="d9">unclassified</data>
   <data key="d13">2</data>
-  <data key="d14">['35 mph', '15 mph']</data>
+  <data key="d14">['15 mph', '35 mph']</data>
   <data key="d15">Hopkins Drive</data>
   <data key="d10">False</data>
   <data key="d11">False</data>
@@ -64098,7 +64098,7 @@
   <data key="d9">service</data>
   <data key="d13">2</data>
   <data key="d14">15 mph</data>
-  <data key="d15">['Scholars Drive South', 'Muir Lane']</data>
+  <data key="d15">['Muir Lane', 'Scholars Drive South']</data>
   <data key="d10">False</data>
   <data key="d11">True</data>
   <data key="d12">196.77024441747142</data>
