@@ -61,6 +61,20 @@ class Agent:
         
         # Plan initial path
         self.plan_path()
+
+    def reset_ex1(self):
+        """ Resets the agent, but keeps the start and goal nodes that were previously set for experiment 1.
+        """
+        self.current_node = self.start_node
+        self.next_node = None
+        self.path = []
+        self.path_index = 0
+        self.visited_nodes = [self.current_node]
+        self.position = self.environment.get_node_coordinates(self.current_node)
+        self.progress = 0.0
+
+        # Plan initial path
+        self.plan_path()
         
     def plan_path(self):
         """Plan a path from current node to goal. Override in subclasses."""
