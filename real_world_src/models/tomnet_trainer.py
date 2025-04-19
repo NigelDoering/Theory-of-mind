@@ -115,8 +115,174 @@ class ToMNetTrainer:
                     print(f"Skipping {species} - not enough data")
                     continue
                 
-                # Split trajectories into past, recent, and future
-                train_samples = []
+                # Train on species batch
+                species_loss = self._train_species_batch(trajectories, batch_size)
+                epoch_loss += species_loss
+                batch_count += 1
+            
+            # Print epoch statistics
+            if batch_count > 0:
+                avg_loss = epoch_loss / batch_count
+                print(f"Epoch {epoch+1}/{epochs}, Loss: {avg_loss:.6f}")
+            else:
+                print(f"Epoch {epoch+1}/{epochs}, No valid batches!")
+        
+        print("Training completed!")
+        return self.model
+
+    def _train_species_batch(self, trajectories, batch_size):
+        """
+        Train the model on a batch of trajectories from a single species.
+        
+        Args:
+            trajectories: List of trajectories for a single species
+            batch_size: Number of trajectories to include in each batch
+            
+        Returns:
+            Average loss for this batch
+        """
+        self.model.train()
+        total_loss = 0.0
+        batch_count = 0
+        
+        # Skip if not enough trajectories
+        if len(trajectories) < 3:
+            print(f"Skipping batch - not enough trajectories ({len(trajectories)})")
+            return 0.0
+        
+        # Split trajectories into past, recent, and future
+        train_samples = []
+        
+        for i, trajectory in enumerate(trajectories):
+            if len(trajectory) < 5:  # Skip very short trajectories
+                continue
+            
+            # Use up to 5 other trajectories as past trajectories
+            past_traj_indices = [j for j in range(len(trajectories)) if j != i]
+            past_traj_indices = past_traj_indices[:5]  # Limit to 5
+            
+            if not past_traj_indices:  # Skip if no past trajectories
+                continue
+            
+            past_trajs = [trajectories[j] for j in past_traj_indices]
+            
+            # Use first half as recent, second half as future for prediction
+            split_point = len(trajectory) // 2
+            if split_point < 2:  # Ensure at least 2 points for recent
+                continue
+            
+            recent_traj = trajectory[:split_point]
+            future_traj = trajectory[split_point:]
+            
+            train_samples.append((past_trajs, recent_traj, future_traj))
+        
+        # Skip if not enough samples
+        if len(train_samples) < batch_size:
+            print(f"Skipping batch - not enough valid samples ({len(train_samples)})")
+            return 0.0
+        
+        # Train in batches
+        for batch_start in range(0, len(train_samples), batch_size):
+            batch_end = min(batch_start + batch_size, len(train_samples))
+            batch = train_samples[batch_start:batch_end]
+            
+            # Prepare batch data
+            past_batch = []
+            recent_batch = []
+            future_batch = []
+            
+            for past_trajs, recent_traj, future_traj in batch:
+                # Process trajectories
+                fixed_length = 500
+                
+                from real_world_src.utils.trajectory_collector import TrajectoryCollector
+                # Get trajectory tensor using trajectory_collector's method
+                trajectory_collector = TrajectoryCollector(None)  # Temporary collector for processing
+                
+                past_tensor, _ = trajectory_collector.get_trajectory_tensor(past_trajs)
+                recent_tensor, _ = trajectory_collector.get_trajectory_tensor(
+                    [recent_traj], fixed_length=fixed_length)
+                future_tensor, _ = trajectory_collector.get_trajectory_tensor(
+                    [future_traj], fixed_length=fixed_length)
+                
+                past_batch.append(past_tensor)
+                recent_batch.append(recent_tensor.squeeze(0))
+                future_batch.append(future_tensor.squeeze(0))
+            
+            # Convert to tensors and move to device
+            past_tensor = torch.stack(past_batch).to(self.device)
+            recent_tensor = torch.stack(recent_batch).to(self.device)
+            
+            # Current state is the last state of recent trajectory
+            current_state = torch.stack([r[-1] for r in recent_batch]).to(self.device)
+            
+            # Target is the future trajectory
+            target = torch.stack(future_batch).to(self.device)
+
+            # Print all the tensors of trajectories
+            # print(f"Past Tensor Shape: {past_tensor.shape}")
+            # print(f"Past Tensor: {past_tensor}")
+            # print(f"Recent Tensor Shape: {recent_tensor.shape}")
+            # print(f"Recent Tensor: {recent_tensor}")
+            # print(f"Current State Shape: {current_state.shape}")
+            # print(f"Current State: {current_state}")
+            
+            # Forward pass
+            self.optimizer.zero_grad()
+            output = self.model(past_tensor, recent_tensor, current_state)
+            
+            # Output and target are both [batch_size, seq_len, output_dim]
+            pred_steps = min(output.shape[1], target.shape[1], 5)
+            
+            # Compute loss on matching dimensions
+            loss = self.criterion(output[:, :pred_steps, :], target[:, :pred_steps, :])
+            
+            # Backward pass and optimize
+            loss.backward()
+            self.optimizer.step()
+            
+            total_loss += loss.item()
+            batch_count += 1
+        
+        # Return average loss
+        return total_loss / batch_count if batch_count > 0 else 0.0
+
+    def validate(self, trajectory_collector):
+        """
+        Validate the model on a set of trajectories without updating weights.
+        
+        Args:
+            trajectory_collector: TrajectoryCollector with validation trajectories
+            
+        Returns:
+            Average validation loss
+        """
+        self.model.eval()  # Set model to evaluation mode
+        total_loss = 0.0
+        batch_count = 0
+        
+        # Process each species
+        all_species = list(trajectory_collector.trajectories.keys())
+        
+        if not all_species:
+            print("Warning: No trajectories available for validation")
+            return float('inf')  # Return infinity as a bad loss when validation fails
+        
+        with torch.no_grad():  # No gradient calculation during validation
+            for species in all_species:
+                # Skip if species doesn't exist in trajectories
+                if species not in trajectory_collector.trajectories:
+                    print(f"Warning: No trajectories for species {species}")
+                    continue
+                    
+                trajectories = trajectory_collector.trajectories[species]
+                
+                if len(trajectories) < 3:  # Need at least a few trajectories
+                    print(f"Warning: Not enough trajectories for species {species} (found {len(trajectories)})")
+                    continue
+                
+                # Create validation samples similar to _train_species_batch
+                val_samples = []
                 
                 for i, trajectory in enumerate(trajectories):
                     if len(trajectory) < 5:  # Skip very short trajectories
@@ -135,21 +301,22 @@ class ToMNetTrainer:
                     split_point = len(trajectory) // 2
                     if split_point < 2:  # Ensure at least 2 points for recent
                         continue
-                        
+                    
                     recent_traj = trajectory[:split_point]
                     future_traj = trajectory[split_point:]
                     
-                    train_samples.append((past_trajs, recent_traj, future_traj))
+                    val_samples.append((past_trajs, recent_traj, future_traj))
                 
                 # Skip if not enough samples
-                if len(train_samples) < batch_size:
-                    print(f"Skipping {species} - not enough valid samples")
+                if len(val_samples) < 2:  # Need at least a couple samples
                     continue
                 
-                # Train in batches
-                for batch_start in range(0, len(train_samples), batch_size):
-                    batch_end = min(batch_start + batch_size, len(train_samples))
-                    batch = train_samples[batch_start:batch_end]
+                # Process validation samples in smaller batches
+                batch_size = min(len(val_samples), 32)  # Use smaller batch for validation
+                
+                for batch_start in range(0, len(val_samples), batch_size):
+                    batch_end = min(batch_start + batch_size, len(val_samples))
+                    batch = val_samples[batch_start:batch_end]
                     
                     # Prepare batch data
                     past_batch = []
@@ -157,60 +324,58 @@ class ToMNetTrainer:
                     future_batch = []
                     
                     for past_trajs, recent_traj, future_traj in batch:
-                        # Prepare past trajectories
-                        past_tensor, _ = trajectory_collector.get_trajectory_tensor(past_trajs)
-                        past_batch.append(past_tensor)
+                        # Process trajectories - use a smaller fixed length for validation
+                        fixed_length = 50  # Smaller size to avoid OOM errors
                         
-                        # Prepare recent trajectory
-                        fixed_length = 50  # Use same fixed length as in get_trajectory_tensor
-                        recent_tensor, _ = trajectory_collector.get_trajectory_tensor(
-                            [recent_traj], fixed_length=fixed_length)
-                        recent_batch.append(recent_tensor.squeeze(0))  # Remove batch dim
+                        from real_world_src.utils.trajectory_collector import TrajectoryCollector
+                        # Get trajectory tensor using trajectory_collector's method
+                        trajectory_collector = TrajectoryCollector(None)  # Temporary collector
                         
-                        # Prepare future trajectory (target)
-                        future_tensor, _ = trajectory_collector.get_trajectory_tensor(
-                            [future_traj], fixed_length=fixed_length)
-                        future_batch.append(future_tensor.squeeze(0))  # Remove batch dim
+                        try:
+                            past_tensor, _ = trajectory_collector.get_trajectory_tensor(past_trajs)
+                            recent_tensor, _ = trajectory_collector.get_trajectory_tensor(
+                                [recent_traj], fixed_length=fixed_length)
+                            future_tensor, _ = trajectory_collector.get_trajectory_tensor(
+                                [future_traj], fixed_length=fixed_length)
+                            
+                            past_batch.append(past_tensor)
+                            recent_batch.append(recent_tensor.squeeze(0))
+                            future_batch.append(future_tensor.squeeze(0))
+                        except Exception as e:
+                            print(f"Error processing validation sample: {e}")
+                            continue
+                    
+                    if not past_batch:  # Skip if no valid samples
+                        continue
                     
                     # Convert to tensors and move to device
-                    past_tensor = torch.stack(past_batch).to(self.device)
-                    recent_tensor = torch.stack(recent_batch).to(self.device)
-                    
-                    # Current state is the last state of recent trajectory
-                    current_state = torch.stack([r[-1] for r in recent_batch]).to(self.device)
-                    
-                    # Target is the future trajectory
-                    target = torch.stack(future_batch).to(self.device)
-                    
-                    # Forward pass
-                    self.optimizer.zero_grad()
-                    output = self.model(past_tensor, recent_tensor, current_state)
-                    
-                    # Output and target are both [batch_size, seq_len, output_dim]
-                    pred_steps = min(output.shape[1], target.shape[1], 5)
-                    
-                    # Explicitly print shapes for debugging
-                    if epoch == 0 and batch_count == 0:
-                        print(f"Output shape: {output.shape}")
-                        print(f"Target shape: {target.shape}")
-                        print(f"Using first {pred_steps} steps for prediction")
-                    
-                    # Compute loss on matching dimensions
-                    loss = self.criterion(output[:, :pred_steps, :], target[:, :pred_steps, :])
-                    
-                    # Backward pass and optimize
-                    loss.backward()
-                    self.optimizer.step()
-                    
-                    epoch_loss += loss.item()
-                    batch_count += 1
-            
-            # Print epoch statistics
-            if batch_count > 0:
-                avg_loss = epoch_loss / batch_count
-                print(f"Epoch {epoch+1}/{epochs}, Loss: {avg_loss:.6f}")
-            else:
-                print(f"Epoch {epoch+1}/{epochs}, No valid batches!")
+                    try:
+                        past_tensor = torch.stack(past_batch).to(self.device)
+                        recent_tensor = torch.stack(recent_batch).to(self.device)
+                        
+                        # Current state is the last state of recent trajectory
+                        current_state = torch.stack([r[-1] for r in recent_batch]).to(self.device)
+                        
+                        # Target is the future trajectory
+                        target = torch.stack(future_batch).to(self.device)
+                        
+                        # Forward pass
+                        output = self.model(past_tensor, recent_tensor, current_state)
+                        
+                        # Output and target are both [batch_size, seq_len, output_dim]
+                        pred_steps = min(output.shape[1], target.shape[1], 5)
+                        
+                        # Compute loss on matching dimensions
+                        loss = self.criterion(output[:, :pred_steps, :], target[:, :pred_steps, :])
+                        
+                        total_loss += loss.item()
+                        batch_count += 1
+                    except Exception as e:
+                        print(f"Error in validation computation: {e}")
         
-        print("Training completed!")
-        return self.model
+        # Return average loss
+        if batch_count > 0:
+            return total_loss / batch_count
+        else:
+            print("Warning: No valid validation batches found")
+            return float('inf')  # Return infinity as a bad loss when validation fails

@@ -1,0 +1,8 @@
+1. Fix the goal space for all the episodes
+2. Build an agnet to sub-goal space mapping dynamically
+3. Build a distribution over these goals for every single agent and sample the goal from this distibution for every single episode
+4. 
+
+a. let the agent remember it's distribution - TomNet-Trainer.py
+b. Add live logging over wandb
+c. Each agent - each path - 

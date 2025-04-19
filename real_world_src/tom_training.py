@@ -63,7 +63,7 @@ def main():
     
     # Step 4: Run simulations to collect trajectory data
     print("\nStep 4: Running simulations to collect trajectory data...")
-    num_episodes = 100  # Number of episodes to run for data collection
+    num_episodes = 10  # Number of episodes to run for data collection
     
     for episode in range(num_episodes):
         print(f"\nRunning episode {episode+1}/{num_episodes}...")
@@ -98,7 +98,7 @@ def main():
         state_dim=state_dim,
         hidden_dim=hidden_dim,
         output_dim=output_dim,
-        lr=0.001,
+        lr=0.01,
         device=device
     )
     
@@ -106,7 +106,7 @@ def main():
     model = trainer.train(
         trajectory_collector=trajectory_collector,
         batch_size=32,
-        epochs=50
+        epochs=500
     )
     
     # Save the trained model

@@ -81,8 +81,11 @@ class CharacterNetwork(nn.Module):
             
             # Process through ResNet if available
             if self.use_resnet:
-                # Reshape for 2D convolution
-                x_spatial = x.view(batch_size * num_trajs * seq_len, 1, -1, input_dim)
+                # Reshape for 2D convolution - FIX: properly place input_dim as channels
+                x_spatial = x.view(batch_size * num_trajs * seq_len, input_dim, 1, 1)
+                
+                # Now input shape is [batch, channels=input_dim, height=1, width=1]
+                # which matches what the conv layer expects
                 x_spatial = self.resnet(x_spatial)
                 x_spatial = F.adaptive_avg_pool2d(x_spatial, (1, 1))
                 x = x_spatial.view(batch_size * num_trajs, seq_len, -1)

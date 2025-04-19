@@ -4,7 +4,7 @@ import collections
 class TrajectoryCollector:
     """Collects and organizes agent trajectories for ToMNet training."""
     
-    def __init__(self, environment, max_trajectory_length=100):
+    def __init__(self, environment, max_trajectory_length=500):
         self.environment = environment
         self.max_trajectory_length = max_trajectory_length
         self.trajectories = {}  # Map of species -> list of trajectories
@@ -91,6 +91,9 @@ class TrajectoryCollector:
             'dist_to_goal': dist_to_goal,
             'species': agent.species
         }
+
+        # print(f"Encoded state for agent {agent.id}: {state}")
+        # break
         
         return state
         
@@ -185,6 +188,9 @@ class TrajectoryCollector:
         # Convert to numpy arrays
         features_array = np.array(features, dtype=np.float32)
         masks_array = np.array(masks, dtype=np.float32)
+
+        # print(f"Features shape: {features_array.shape}, Masks shape: {masks_array.shape}")
+        # print(f"Features: {features_array}")
         
         # Normalize if requested
         if normalize:
@@ -200,4 +206,7 @@ class TrajectoryCollector:
         features_tensor = torch.tensor(features_array, dtype=torch.float32)
         masks_tensor = torch.tensor(masks_array, dtype=torch.float32)
         
+        # print(f"Final tensor shapes: {features_tensor.shape}, {masks_tensor.shape}")
+        # print(f"Features tensor: {features_tensor}")
+
         return features_tensor, masks_tensor

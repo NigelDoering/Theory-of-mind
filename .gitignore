@@ -186,3 +186,10 @@ real_world_src/visuals/[1-9][0-9]*/
 real_world_src/tom_results/
 real_world_src/detailed_tom_results/
 real_world_src/visuals/
+
+/exploration_visuals/
+
+frozen_src/outputs/
+frozen_src/static/
+
+wandb/

@@ -5,7 +5,7 @@ import torch
 import numpy as np
 import pandas as pd
 import matplotlib
-matplotlib.use('Agg')  # Force Agg backend for all plots
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import seaborn as sns
 from tqdm import tqdm
@@ -324,7 +324,7 @@ class DetailedToMTraining:
             plt.close(fig)
             print(f"  - {species_path}")
         
-    def collect_trajectory_data(self, num_episodes=100, max_steps=100, 
+    def collect_trajectory_data(self, num_episodes=100, max_steps=500, 
                               visualize_interval=10):
         """Collect trajectory data from agent simulations"""
         print("\n📍 PHASE 2: TRAJECTORY DATA COLLECTION")
@@ -394,6 +394,8 @@ class DetailedToMTraining:
             
             # Record trajectory statistics
             for species, trajectories in self.trajectory_collector.trajectories.items():
+                # print(f"species: {species} - Trajectory: {trajectories[0][0]}")
+                # break
                 if species not in collection_metrics['trajectories_per_species']:
                     collection_metrics['trajectories_per_species'][species] = []
                 collection_metrics['trajectories_per_species'][species].append(len(trajectories))
@@ -641,6 +643,7 @@ class DetailedToMTraining:
         # Get species with sufficient data
         valid_species = []
         for species, trajectories in self.trajectory_collector.trajectories.items():
+            # print(f"species: {species} - Trajectory: {trajectories}")
             if len(trajectories) >= batch_size:
                 valid_species.append(species)
         
@@ -859,7 +862,7 @@ class DetailedToMTraining:
             max_steps=1000, 
             animate=True, 
             save_animation=True,
-            animation_name="tom_agent_test"
+            # animation_name="tom_agent_test"
         )
         
         # Generate evaluation metrics
@@ -1063,10 +1066,10 @@ def run_detailed_tom_training():
     experiment.setup_environment()
     
     # Phase 2: Collect trajectory data
-    experiment.collect_trajectory_data(num_episodes=10, max_steps=100, visualize_interval=5)
+    experiment.collect_trajectory_data(num_episodes=100, max_steps=100, visualize_interval=5)
     
     # Phase 3: Train ToMNet model
-    experiment.train_tomnet(epochs=10, visualize_interval=2)
+    experiment.train_tomnet(epochs=100, visualize_interval=2)
     
     # Phase 4: Evaluate ToM agent
     experiment.evaluate_tom_agent()
