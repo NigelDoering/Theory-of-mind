@@ -192,4 +192,7 @@ real_world_src/visuals/
 frozen_src/outputs/
 frozen_src/static/
 
+goal_spaces/
+orienteering_visuals/
+
 wandb/

@@ -1,0 +1,20 @@
+Episode 2 Log
+====================
+
+Step 1: Taking action DOWN from state 6
+  → New position: (1, 6), State: 14
+  → Received reward: 0.0000
+Step 2: Taking action DOWN from state 14
+  → New position: (2, 6), State: 22
+  → Received reward: 0.0000
+Step 3: Taking action DOWN from state 22
+  → New position: (3, 6), State: 30
+  → HIT A HOLE!
+  → Received reward: 0.0000
+Hit a hole, ending episode early
+
+Episode Summary:
+Total Reward: 0.00
+Steps: 3
+Goals discovered this episode: 0
+Total goals discovered so far: 0 out of 9

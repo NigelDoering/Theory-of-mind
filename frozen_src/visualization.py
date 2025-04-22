@@ -10,6 +10,73 @@ sns.set_theme()
 from frozen_src.environment import FrozenLakeEnv
 from frozen_src.agent import QLearningAgent
 
+def visualize_environment(desc, save_path: Path = None) -> None:
+    """Visualize the FrozenLake environment using matplotlib"""
+    plt.figure(figsize=(7, 7))
+    
+    # Create a grid of the same size as the environment
+    nrow, ncol = desc.shape
+    grid = np.zeros((nrow, ncol, 3), dtype=float)  # RGB array
+    
+    # Define colors for different tiles
+    colors = {
+        b'S': [0.0, 0.5, 0.0],    # Start: Dark Green
+        b'F': [0.9, 0.9, 1.0],    # Frozen: Light Blue
+        b'H': [0.2, 0.2, 0.8],    # Hole: Dark Blue
+        b'G': [1.0, 0.9, 0.0]     # Goal: Gold
+    }
+    
+    # Fill the grid with colors based on the environment
+    for i in range(nrow):
+        for j in range(ncol):
+            grid[i, j] = colors[desc[i][j]]
+    
+    # Plot the grid
+    plt.imshow(grid)
+    
+    # Add text annotations
+    tile_dict = {b'S': 'S', b'F': 'F', b'H': 'H', b'G': 'G'}
+    for i in range(nrow):
+        for j in range(ncol):
+            plt.text(j, i, tile_dict[desc[i][j]], 
+                     ha="center", va="center", color="black", fontsize=15)
+    
+    # Remove ticks
+    plt.xticks([])
+    plt.yticks([])
+    
+    # Add a title with map size
+    plt.title(f"FrozenLake Environment ({nrow}x{ncol})")
+    
+    # Show the plot
+    plt.tight_layout()
+    plt.savefig(save_path)  # Save the visualization
+    plt.show()
+
+def print_text_map(desc):
+    """Print a text-based visualization of the map to the console"""
+    nrow, ncol = desc.shape
+    print("FrozenLake Map:")
+    print("┌" + "─" * (ncol * 2 - 1) + "┐")
+    for i in range(nrow):
+        row_str = "│"
+        for j in range(ncol):
+            tile = desc[i][j]
+            if tile == b'S':
+                symbol = "S"  # Start
+            elif tile == b'F':
+                symbol = "·"  # Frozen tile
+            elif tile == b'H':
+                symbol = "O"  # Hole
+            elif tile == b'G':
+                symbol = "G"  # Goal
+            row_str += symbol
+            if j < ncol - 1:
+                row_str += " "
+        row_str += "│"
+        print(row_str)
+    print("└" + "─" * (ncol * 2 - 1) + "┘")
+    print("S: Start, ·: Frozen, O: Hole, G: Goal")
 
 def run_experiment(
     env: FrozenLakeEnv,

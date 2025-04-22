@@ -24,7 +24,7 @@ wandb.init(
     project="frozenlake-ql",
     config={
         "n_runs": 50,
-        "episodes": 5000,  # increased episodes to match notebook and support larger grids
+        "episodes": 5000,
     }
 )
 
@@ -35,8 +35,7 @@ for map_size in map_sizes:
     agent = QLearningAgent(env.observation_space.n, env.action_space.n)
     n_runs = wandb.config.n_runs
     total_episodes = wandb.config.episodes
-    # Define a prefix to group metrics by grid size
-    prefix = f"Grid_{map_size}x{map_size}"  # consistent prefix as in notebook
+    prefix = f"Grid_{map_size}x{map_size}"
 
     # Containers for rewards and steps
     all_rewards = []

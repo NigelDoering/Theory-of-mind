@@ -1,0 +1,8 @@
+Environment: FrozenLake-v1
+Map Size: 8x8
+Number of Goals: 9
+Is Slippery: False
+Number of Episodes: 200
+Max Steps: 75
+Seed: 14
+Perception Radius: 2

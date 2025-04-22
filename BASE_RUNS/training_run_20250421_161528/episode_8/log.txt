@@ -1,0 +1,51 @@
+Episode 8 Log
+====================
+
+Step 1: Taking action DOWN from state 6
+  → New position: (1, 6), State: 14
+  → Received reward: 0.0000
+Step 2: Taking action DOWN from state 14
+  → New position: (2, 6), State: 22
+  → Received reward: 0.0000
+Step 3: Taking action RIGHT from state 22
+  → New position: (2, 7), State: 23
+  → Received reward: 0.0000
+Step 4: Taking action LEFT from state 23
+  → New position: (2, 6), State: 22
+  → Received reward: 0.0000
+Step 5: Taking action UP from state 22
+  → New position: (1, 6), State: 14
+  → Received reward: 0.0000
+Step 6: Taking action RIGHT from state 14
+  → New position: (1, 7), State: 15
+  → Received reward: 0.0000
+Step 7: Taking action LEFT from state 15
+  → New position: (1, 6), State: 14
+  → Received reward: 0.0000
+Step 8: Taking action DOWN from state 14
+  → New position: (2, 6), State: 22
+  → Received reward: 0.0000
+Step 9: Taking action LEFT from state 22
+  → New position: (2, 5), State: 21
+  → Exploration bonus: 0.0200
+  → Received reward: 0.0200
+Step 10: Taking action RIGHT from state 21
+  → New position: (2, 6), State: 22
+  → Received reward: 0.0000
+Step 11: Taking action RIGHT from state 22
+  → New position: (2, 7), State: 23
+  → Received reward: 0.0000
+Step 12: Taking action LEFT from state 23
+  → New position: (2, 6), State: 22
+  → Received reward: 0.0000
+Step 13: Taking action DOWN from state 22
+  → New position: (3, 6), State: 30
+  → HIT A HOLE!
+  → Received reward: 0.0000
+Hit a hole, ending episode early
+
+Episode Summary:
+Total Reward: 0.02
+Steps: 13
+Goals discovered this episode: 0
+Total goals discovered so far: 0 out of 9

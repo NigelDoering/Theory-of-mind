@@ -82,13 +82,12 @@ class GoalSpaceGenerator:
         # Generate a random map with holes but no goals
         raw_map = generate_random_map(size=self.map_size, p=p, seed=self.seed)
         
-        # Debug output - handle both bytes and strings
-        print("Generated initial map:")
-        for row in raw_map:
-            if isinstance(row, bytes):
-                print(row.decode('utf-8'))
-            else:
-                print(row)
+        # print("Generated initial map:")
+        # for row in raw_map:
+        #     if isinstance(row, bytes):
+        #         print(row.decode('utf-8'))
+        #     else:
+        #         print(row)
         
         # Convert to array for easier manipulation - but use a list of lists first
         map_list = []
@@ -174,8 +173,8 @@ class GoalSpaceGenerator:
         
         # Display the final map
         print("Final map with randomized start:")
-        for row in map_array:
-            print(''.join([c.decode('utf-8') for c in row]))
+        # for row in map_array:
+            # print(''.join([c.decode('utf-8') for c in row]))
         
         return map_array
     
@@ -202,18 +201,22 @@ class GoalSpaceGenerator:
     
     def _assign_rewards(self):
         """Sample from Dirichlet distribution and assign rewards."""
-
+        
+        # CHECK THIS PART: Make sure rewards are actually positive values
         ag_alpha = np.random.normal(1, 0.2, size=self.n_goals)
         self.dirichlet_probs = np.random.dirichlet(alpha=np.ones(self.n_goals)*(ag_alpha), size=1)[0]
         
         # Scale probabilities by base reward
         rewards = self.dirichlet_probs * self.base_reward
-
+        
+        # Print rewards for debugging
+        print(f"Debug - Goal rewards: {rewards}")
+        
         # Set the reward for the final goal
         final_goal_index = random.randint(0, self.n_goals - 1)
         self.final_goal = self.goal_positions[final_goal_index]
         self.goal_rewards[self.final_goal] = self.base_reward
-
+        
         # Set the rewards for the other goals
         for i in range(self.n_goals):
             if i != final_goal_index:

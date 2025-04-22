@@ -1,0 +1,47 @@
+Episode 2 Log
+====================
+
+Step 1: Taking action RIGHT from state 6
+  → New position: (0, 7), State: 7
+  → Received reward: 0.0000
+Step 2: Taking action DOWN from state 7
+  → New position: (1, 7), State: 15
+  → Received reward: 0.0000
+Step 3: Taking action LEFT from state 15
+  → New position: (1, 6), State: 14
+  → Received reward: 0.0000
+Step 4: Taking action LEFT from state 14
+  → New position: (1, 5), State: 13
+  → Received reward: 0.0000
+Step 5: Taking action UP from state 13
+  → New position: (0, 5), State: 5
+  → Received reward: 0.0000
+Step 6: Taking action LEFT from state 5
+  → New position: (0, 4), State: 4
+  → Exploration bonus: 0.0200
+  → Received reward: 0.0200
+Step 7: Taking action RIGHT from state 4
+  → New position: (0, 5), State: 5
+  → Received reward: 0.0000
+Step 8: Taking action LEFT from state 5
+  → New position: (0, 4), State: 4
+  → Received reward: 0.0000
+Step 9: Taking action RIGHT from state 4
+  → New position: (0, 5), State: 5
+  → Received reward: 0.0000
+Step 10: Taking action LEFT from state 5
+  → New position: (0, 4), State: 4
+  → Received reward: 0.0000
+Step 11: Taking action RIGHT from state 4
+  → New position: (0, 5), State: 5
+  → Received reward: 0.0000
+Step 12: Taking action LEFT from state 5
+  → New position: (0, 4), State: 4
+  → Received reward: 0.0000
+Step 13: Taking action LEFT from state 4
+  → New position: (0, 3), State: 3
+  → Exploration bonus: 0.0600
+  → Received reward: 0.0600
+Step 14: Taking action RIGHT from state 3
+  → New position: (0, 4), State: 4
+  → Received reward: 0.0000

@@ -1,0 +1,242 @@
+Episode 1 Log
+====================
+
+Step 1: Taking action RIGHT from state 6
+  → New position: (0, 7), State: 7
+  → Exploration bonus: 0.0200
+  → Received reward: 0.0200
+Step 2: Taking action DOWN from state 7
+  → New position: (1, 7), State: 15
+  → Exploration bonus: 0.0200
+  → Received reward: 0.0200
+Step 3: Taking action DOWN from state 15
+  → New position: (2, 7), State: 23
+  → Exploration bonus: 0.0600
+  → Received reward: 0.0600
+Step 4: Taking action UP from state 23
+  → New position: (1, 7), State: 15
+  → Received reward: 0.0000
+Step 5: Taking action DOWN from state 15
+  → New position: (2, 7), State: 23
+  → Received reward: 0.0000
+Step 6: Taking action UP from state 23
+  → New position: (1, 7), State: 15
+  → Received reward: 0.0000
+Step 7: Taking action DOWN from state 15
+  → New position: (2, 7), State: 23
+  → Received reward: 0.0000
+Step 8: Taking action UP from state 23
+  → New position: (1, 7), State: 15
+  → Received reward: 0.0000
+Step 9: Taking action DOWN from state 15
+  → New position: (2, 7), State: 23
+  → Received reward: 0.0000
+Step 10: Taking action UP from state 23
+  → New position: (1, 7), State: 15
+  → Received reward: 0.0000
+Step 11: Taking action DOWN from state 15
+  → New position: (2, 7), State: 23
+  → Received reward: 0.0000
+Step 12: Taking action UP from state 23
+  → New position: (1, 7), State: 15
+  → Received reward: 0.0000
+Step 13: Taking action DOWN from state 15
+  → New position: (2, 7), State: 23
+  → Received reward: 0.0000
+Step 14: Taking action UP from state 23
+  → New position: (1, 7), State: 15
+  → Received reward: 0.0000
+Step 15: Taking action DOWN from state 15
+  → New position: (2, 7), State: 23
+  → Received reward: 0.0000
+Step 16: Taking action LEFT from state 23
+  → New position: (2, 6), State: 22
+  → Exploration bonus: 0.0600
+  → Received reward: 0.0600
+Step 17: Taking action UP from state 22
+  → New position: (1, 6), State: 14
+  → Exploration bonus: 0.0200
+  → Received reward: 0.0200
+Step 18: Taking action UP from state 14
+  → New position: (0, 6), State: 6
+  → Received reward: 0.0000
+Step 19: Taking action RIGHT from state 6
+  → New position: (0, 7), State: 7
+  → Received reward: 0.0000
+Step 20: Taking action DOWN from state 7
+  → New position: (1, 7), State: 15
+  → Received reward: 0.0000
+Step 21: Taking action DOWN from state 15
+  → New position: (2, 7), State: 23
+  → Received reward: 0.0000
+Step 22: Taking action LEFT from state 23
+  → New position: (2, 6), State: 22
+  → Received reward: 0.0000
+Step 23: Taking action RIGHT from state 22
+  → New position: (2, 7), State: 23
+  → Received reward: 0.0000
+Step 24: Taking action LEFT from state 23
+  → New position: (2, 6), State: 22
+  → Received reward: 0.0000
+Step 25: Taking action UP from state 22
+  → New position: (1, 6), State: 14
+  → Received reward: 0.0000
+Step 26: Taking action UP from state 14
+  → New position: (0, 6), State: 6
+  → Received reward: 0.0000
+Step 27: Taking action DOWN from state 6
+  → New position: (1, 6), State: 14
+  → Received reward: 0.0000
+Step 28: Taking action LEFT from state 14
+  → New position: (1, 5), State: 13
+  → Exploration bonus: 0.0200
+  → Received reward: 0.0200
+Step 29: Taking action RIGHT from state 13
+  → New position: (1, 6), State: 14
+  → Received reward: 0.0000
+Step 30: Taking action LEFT from state 14
+  → New position: (1, 5), State: 13
+  → Received reward: 0.0000
+Step 31: Taking action UP from state 13
+  → New position: (0, 5), State: 5
+  → Exploration bonus: 0.0200
+  → Received reward: 0.0200
+Step 32: Taking action RIGHT from state 5
+  → New position: (0, 6), State: 6
+  → Received reward: 0.0000
+Step 33: Taking action RIGHT from state 6
+  → New position: (0, 7), State: 7
+  → Received reward: 0.0000
+Step 34: Taking action DOWN from state 7
+  → New position: (1, 7), State: 15
+  → Received reward: 0.0000
+Step 35: Taking action LEFT from state 15
+  → New position: (1, 6), State: 14
+  → Received reward: 0.0000
+Step 36: Taking action RIGHT from state 14
+  → New position: (1, 7), State: 15
+  → Received reward: 0.0000
+Step 37: Taking action UP from state 15
+  → New position: (0, 7), State: 7
+  → Received reward: 0.0000
+Step 38: Taking action DOWN from state 7
+  → New position: (1, 7), State: 15
+  → Received reward: 0.0000
+Step 39: Taking action DOWN from state 15
+  → New position: (2, 7), State: 23
+  → Received reward: 0.0000
+Step 40: Taking action LEFT from state 23
+  → New position: (2, 6), State: 22
+  → Received reward: 0.0000
+Step 41: Taking action RIGHT from state 22
+  → New position: (2, 7), State: 23
+  → Received reward: 0.0000
+Step 42: Taking action UP from state 23
+  → New position: (1, 7), State: 15
+  → Received reward: 0.0000
+Step 43: Taking action UP from state 15
+  → New position: (0, 7), State: 7
+  → Received reward: 0.0000
+Step 44: Taking action DOWN from state 7
+  → New position: (1, 7), State: 15
+  → Received reward: 0.0000
+Step 45: Taking action UP from state 15
+  → New position: (0, 7), State: 7
+  → Received reward: 0.0000
+Step 46: Taking action DOWN from state 7
+  → New position: (1, 7), State: 15
+  → Received reward: 0.0000
+Step 47: Taking action UP from state 15
+  → New position: (0, 7), State: 7
+  → Received reward: 0.0000
+Step 48: Taking action DOWN from state 7
+  → New position: (1, 7), State: 15
+  → Received reward: 0.0000
+Step 49: Taking action UP from state 15
+  → New position: (0, 7), State: 7
+  → Received reward: 0.0000
+Step 50: Taking action DOWN from state 7
+  → New position: (1, 7), State: 15
+  → Received reward: 0.0000
+Step 51: Taking action DOWN from state 15
+  → New position: (2, 7), State: 23
+  → Received reward: 0.0000
+Step 52: Taking action UP from state 23
+  → New position: (1, 7), State: 15
+  → Received reward: 0.0000
+Step 53: Taking action LEFT from state 15
+  → New position: (1, 6), State: 14
+  → Received reward: 0.0000
+Step 54: Taking action RIGHT from state 14
+  → New position: (1, 7), State: 15
+  → Received reward: 0.0000
+Step 55: Taking action LEFT from state 15
+  → New position: (1, 6), State: 14
+  → Received reward: 0.0000
+Step 56: Taking action RIGHT from state 14
+  → New position: (1, 7), State: 15
+  → Received reward: 0.0000
+Step 57: Taking action UP from state 15
+  → New position: (0, 7), State: 7
+  → Received reward: 0.0000
+Step 58: Taking action DOWN from state 7
+  → New position: (1, 7), State: 15
+  → Received reward: 0.0000
+Step 59: Taking action LEFT from state 15
+  → New position: (1, 6), State: 14
+  → Received reward: 0.0000
+Step 60: Taking action RIGHT from state 14
+  → New position: (1, 7), State: 15
+  → Received reward: 0.0000
+Step 61: Taking action DOWN from state 15
+  → New position: (2, 7), State: 23
+  → Received reward: 0.0000
+Step 62: Taking action DOWN from state 23
+  → New position: (3, 7), State: 31
+  → Exploration bonus: 0.0200
+  → Received reward: 0.0200
+Step 63: Taking action UP from state 31
+  → New position: (2, 7), State: 23
+  → Received reward: 0.0000
+Step 64: Taking action UP from state 23
+  → New position: (1, 7), State: 15
+  → Received reward: 0.0000
+Step 65: Taking action UP from state 15
+  → New position: (0, 7), State: 7
+  → Received reward: 0.0000
+Step 66: Taking action DOWN from state 7
+  → New position: (1, 7), State: 15
+  → Received reward: 0.0000
+Step 67: Taking action LEFT from state 15
+  → New position: (1, 6), State: 14
+  → Received reward: 0.0000
+Step 68: Taking action RIGHT from state 14
+  → New position: (1, 7), State: 15
+  → Received reward: 0.0000
+Step 69: Taking action DOWN from state 15
+  → New position: (2, 7), State: 23
+  → Received reward: 0.0000
+Step 70: Taking action LEFT from state 23
+  → New position: (2, 6), State: 22
+  → Received reward: 0.0000
+Step 71: Taking action RIGHT from state 22
+  → New position: (2, 7), State: 23
+  → Received reward: 0.0000
+Step 72: Taking action UP from state 23
+  → New position: (1, 7), State: 15
+  → Received reward: 0.0000
+Step 73: Taking action UP from state 15
+  → New position: (0, 7), State: 7
+  → Received reward: 0.0000
+Step 74: Taking action DOWN from state 7
+  → New position: (1, 7), State: 15
+  → Received reward: 0.0000
+Step 75: Taking action DOWN from state 15
+  → New position: (2, 7), State: 23
+  → Received reward: 0.0000
+
+Episode Summary:
+Total Reward: 0.24
+Steps: 75
+Goals discovered this episode: 0
+Total goals discovered so far: 0 out of 9
