@@ -74,6 +74,6 @@ if __name__ == "__main__":
         perception_radius=2,
         alpha=1.0,
         goal_bonus=2.5,
-        budget_scale=0.5,
+        budget_scale=1.0,
         visualize_every=1
     )

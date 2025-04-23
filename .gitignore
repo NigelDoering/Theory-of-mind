@@ -194,5 +194,7 @@ frozen_src/static/
 
 goal_spaces/
 orienteering_visuals/
+models/
+experiments/
 
 wandb/
