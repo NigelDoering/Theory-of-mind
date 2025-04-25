@@ -6,6 +6,7 @@ from collections import defaultdict
 from tqdm import tqdm
 import sys
 import os
+import time
 
 class HierarchicalQLearningAgent:
     """
@@ -13,7 +14,7 @@ class HierarchicalQLearningAgent:
     
     This agent uses a two-level hierarchy:
     1. High level: Choose which goal to pursue next
-    2. Low level: Learn how to reach the chosen goal and when to collect rewards
+    2. Low level: Learn how to reach the chosen goal using movement actions
     """
     
     def __init__(
@@ -26,18 +27,7 @@ class HierarchicalQLearningAgent:
         epsilon_decay: float = 0.995,
         min_epsilon: float = 0.01
     ):
-        """
-        Initialize the agent.
-        
-        Args:
-            env: The environment (must be MultiGoalFrozenLakeEnv)
-            high_alpha: Learning rate for high-level policy
-            low_alpha: Learning rate for low-level policy
-            gamma: Discount factor
-            epsilon: Initial exploration rate
-            epsilon_decay: Decay rate for epsilon
-            min_epsilon: Minimum epsilon value
-        """
+        """Initialize the agent."""
         self.env = env
         self.high_alpha = high_alpha
         self.low_alpha = low_alpha
@@ -47,10 +37,10 @@ class HierarchicalQLearningAgent:
         self.min_epsilon = min_epsilon
         
         # Store Dirichlet distribution parameters for tracking
-        self.dirichlet_probabilities = env.dirichlet_probs
+        self.dirichlet_probabilities = env.dirichlet_probs if hasattr(env, 'dirichlet_probs') else None
         
-        # Action space (including collect)
-        self.n_actions = env.action_space.n
+        # Action space (MODIFIED: only movement actions - no collect)
+        self.n_actions = 4  # Only up, down, left, right
         
         # State space
         self.n_states = env.observation_space.n
@@ -65,7 +55,6 @@ class HierarchicalQLearningAgent:
         
         # Current goal tracking
         self.current_goal = None
-        self.goal_reached = False
         
     def _init_q_tables(self):
         """Initialize Q-tables for high and low level policies."""
@@ -81,12 +70,27 @@ class HierarchicalQLearningAgent:
             state = self.env.pos_to_state[pos]
             self.goal_states.append(state)
         
-        # Add final goal
-        final_goal_state = self.env.pos_to_state[self.env.final_goal_pos]
-        if final_goal_state not in self.goal_states:
-            self.goal_states.append(final_goal_state)
+        # Initialize Q-values with small random values to break ties
+        for state in range(self.n_states):
+            for goal in self.goal_states:
+                # Initialize high-level Q-values
+                self.high_q_table[state][goal] = np.random.uniform(0, 0.1)
+                
+                # Initialize low-level Q-values (MODIFIED: only 4 actions)
+                for action in range(self.n_actions):
+                    self.low_q_tables[goal][(state, action)] = np.random.uniform(0, 0.1)
         
-        self.final_goal_state = final_goal_state
+        # Bias movement actions based on proximity to goal
+        for goal in self.goal_states:
+            goal_pos = self.env.state_to_pos[goal]
+            for state in range(self.n_states):
+                pos = self.env.state_to_pos[state]
+                
+                # If at goal position, prefer exploring elsewhere
+                if pos == goal_pos:
+                    # At goal, bias toward movement in all directions
+                    for action in range(4):
+                        self.low_q_tables[goal][(state, action)] = 0.2
         
     def _select_goal(self, state, eval_mode=False):
         """
@@ -99,30 +103,31 @@ class HierarchicalQLearningAgent:
         Returns:
             Selected goal state
         """
-        # Find available goals (not collected yet)
-        available_goals = []
-        for goal_state in self.goal_states:
-            goal_pos = self.env.state_to_pos[goal_state]
-            if goal_pos not in self.env.collected_goals:
-                available_goals.append(goal_state)
-        
-        # Always include final goal
-        if self.final_goal_state not in available_goals:
-            available_goals.append(self.final_goal_state)
+        # MODIFIED: All goals are always available - no collected goals concept
+        available_goals = self.goal_states
             
-        # If no goals available, return final goal
-        if not available_goals:
-            return self.final_goal_state
-        
-        # Epsilon-greedy selection
+        # Epsilon-greedy selection with value bias
         if eval_mode or random.random() > self.epsilon:
-            # Greedy selection based on high-level Q-values
-            q_values = {g: self.high_q_table[state][g] for g in available_goals}
+            # Get Q-values and rewards for goals
+            q_values = {}
+            for g in available_goals:
+                goal_pos = self.env.state_to_pos[g]
+                goal_reward = self.env.goal_rewards.get(goal_pos, 0)
+                # Weight by both Q-value and actual reward
+                q_values[g] = self.high_q_table[state][g] + (0.1 * goal_reward)
+                
             max_value = max(q_values.values()) if q_values else 0
             best_goals = [g for g, v in q_values.items() if v == max_value]
             return random.choice(best_goals) if best_goals else random.choice(available_goals)
         else:
-            # Random selection
+            # Random selection, but with bias toward higher reward goals
+            if random.random() < 0.3 and available_goals:  # 30% chance of reward-biased selection
+                goal_rewards = [(g, self.env.goal_rewards.get(self.env.state_to_pos[g], 0)) 
+                               for g in available_goals]
+                # Normalize probabilities to ensure they sum to 1
+                total_reward = sum(r for _, r in goal_rewards) + 1e-9
+                probabilities = [r / total_reward for _, r in goal_rewards]
+                return np.random.choice(available_goals, p=probabilities)
             return random.choice(available_goals)
     
     def _select_action(self, state, goal, eval_mode=False):
@@ -137,6 +142,8 @@ class HierarchicalQLearningAgent:
         Returns:
             Selected action
         """
+        # MODIFIED: No special handling for being at a goal - just select movement actions
+            
         # Epsilon-greedy selection
         if eval_mode or random.random() > self.epsilon:
             # Greedy selection
@@ -145,37 +152,29 @@ class HierarchicalQLearningAgent:
             best_actions = [a for a, v in enumerate(q_values) if v == max_value]
             return random.choice(best_actions)
         else:
-            # Random selection
+            # Random selection (uniform)
             return random.randint(0, self.n_actions - 1)
     
     def train(self, n_episodes=5000, max_steps=100, eval_interval=100, render=False):
-        """
-        Train the agent.
+        """Train the agent for specified number of episodes."""
+        # Reset performance tracking if this is a new training session
+        if not hasattr(self, 'training_started') or not self.training_started:
+            self.episode_rewards = []
+            self.episode_steps = []
+            self.goals_reached = []
+            self.training_started = True
+            if not hasattr(self, 'max_goals_per_episode'):
+                self.max_goals_per_episode = 0
         
-        Args:
-            n_episodes: Number of episodes to train for
-            max_steps: Maximum steps per episode
-            eval_interval: How often to evaluate the agent
-            render: Whether to render the environment during training
-            
-        Returns:
-            Training metrics
-        """
-        # Reset performance tracking
-        self.episode_rewards = []
-        self.episode_steps = []
-        self.goals_reached = []
-        
-        # Progress bar
+        # Use tqdm for progress bar without showing every detail
         pbar = tqdm(range(n_episodes), desc="Training")
         
         for episode in pbar:
             # Reset environment
             state, _ = self.env.reset()
             
-            # Select initial goal
-            goal = self._select_goal(state)
-            self.current_goal = goal
+            # Track visited goals for this episode
+            visited_goals = set()
             
             # Track episode performance
             total_reward = 0
@@ -184,64 +183,64 @@ class HierarchicalQLearningAgent:
             
             # Episode loop
             for step in range(max_steps):
-                # Select action
+                # Select goal
+                goal = self._select_goal(state)
+                self.current_goal = goal
+                
+                # Select action for current state and goal
                 action = self._select_action(state, goal)
                 
                 # Take action
-                next_state, reward, terminated, truncated, _ = self.env.step(action)
-                done = terminated or truncated
-                
-                # Update metrics
+                next_state, reward, terminated, truncated, info = self.env.step(action)
                 total_reward += reward
                 steps += 1
                 
-                # Render if requested
-                if render and episode % (n_episodes // 10) == 0:
-                    self.env.render()
-                
-                # Check if goal reached (agent moved to goal location)
-                goal_pos = self.env.state_to_pos[goal]
+                # MODIFIED: Check if we're at a goal position
                 agent_pos = self.env.state_to_pos[next_state]
+                if agent_pos in self.env.goal_positions and next_state not in visited_goals:
+                    visited_goals.add(next_state)
+                    goals_reached += 1
                 
-                # Update low-level Q-table
+                # Update Q-tables (Q-learning update)
+                # Low-level Q-table (action selection)
                 old_value = self.low_q_tables[goal][(state, action)]
                 next_best = max([self.low_q_tables[goal][(next_state, a)] for a in range(self.n_actions)])
                 new_value = old_value + self.low_alpha * (reward + self.gamma * next_best - old_value)
                 self.low_q_tables[goal][(state, action)] = new_value
                 
-                # Check if we've reached the goal and need to choose a new one
-                if agent_pos == goal_pos and action == 4:  # Collect action
-                    # Update high-level Q-table
+                # High-level Q-table update if we reached the goal
+                if next_state == goal:
+                    # Update goal value
                     old_value = self.high_q_table[state][goal]
-                    next_goals = [g for g in self.goal_states if g != goal]
+                    # Choose best next goal from next state
+                    next_goals = [g for g in self.goal_states]
                     if next_goals:
-                        best_next_goal = max(next_goals, key=lambda g: self.high_q_table[next_state][g])
-                        next_best = self.high_q_table[next_state][best_next_goal]
+                        next_best = max([self.high_q_table[next_state][g] for g in next_goals])
                     else:
                         next_best = 0
+                    # Update high-level Q-value
                     new_value = old_value + self.high_alpha * (reward + self.gamma * next_best - old_value)
                     self.high_q_table[state][goal] = new_value
-                    
-                    # Select new goal
-                    goal = self._select_goal(next_state)
-                    goals_reached += 1
                 
                 # Update state
                 state = next_state
                 
-                # Break if done
-                if done:
+                if terminated or truncated:
                     break
             
-            # Record episode performance
+            # Update metrics
             self.episode_rewards.append(total_reward)
             self.episode_steps.append(steps)
             self.goals_reached.append(goals_reached)
             
+            # Track maximum goals found in any episode
+            self.max_goals_per_episode = max(self.max_goals_per_episode if hasattr(self, 'max_goals_per_episode') else 0, 
+                                            goals_reached)
+            
             # Decay epsilon
             self.epsilon = max(self.min_epsilon, self.epsilon * self.epsilon_decay)
             
-            # Update progress bar
+            # Update progress bar with metrics - only every 10 episodes
             if episode % 10 == 0:
                 pbar.set_postfix({
                     'reward': f"{np.mean(self.episode_rewards[-10:]):.2f}",
@@ -251,8 +250,8 @@ class HierarchicalQLearningAgent:
                 })
             
             # Run evaluation
-            if episode % eval_interval == 0:
-                eval_reward, eval_steps, eval_goals = self.evaluate(5)
+            if eval_interval > 0 and episode % eval_interval == 0:
+                eval_reward, eval_steps, eval_goals = self.evaluate(5, max_steps)
                 print(f"\nEval: reward={eval_reward:.2f}, steps={eval_steps:.1f}, goals={eval_goals:.1f}")
         
         return {
@@ -279,6 +278,10 @@ class HierarchicalQLearningAgent:
         
         for _ in range(n_episodes):
             state, _ = self.env.reset()
+            
+            # Track visited goals
+            visited_goals = set()
+            
             goal = self._select_goal(state, eval_mode=True)
             
             total_reward = 0
@@ -286,7 +289,7 @@ class HierarchicalQLearningAgent:
             goals_reached = 0
             
             for step in range(max_steps):
-                # Select best action
+                # Select best action (no exploration)
                 action = self._select_action(state, goal, eval_mode=True)
                 
                 # Take action
@@ -300,16 +303,17 @@ class HierarchicalQLearningAgent:
                 # Render if requested
                 if render:
                     self.env.render()
+                    time.sleep(0.1)  # Slow down for visualization
                 
-                # Check if goal reached (agent moved to goal location)
-                goal_pos = self.env.state_to_pos[goal]
+                # MODIFIED: Check if at goal position
                 agent_pos = self.env.state_to_pos[next_state]
-                
-                # If reached goal and collected, select new goal
-                if agent_pos == goal_pos and action == 4:  # Collect action
+                if agent_pos in self.env.goal_positions and next_state not in visited_goals:
+                    visited_goals.add(next_state)
                     goals_reached += 1
-                    if not done:
-                        goal = self._select_goal(next_state, eval_mode=True)
+                
+                # Select new goal if reached current one
+                if next_state == goal:
+                    goal = self._select_goal(next_state, eval_mode=True)
                 
                 # Update state
                 state = next_state
@@ -324,8 +328,13 @@ class HierarchicalQLearningAgent:
         
         return np.mean(eval_rewards), np.mean(eval_steps), np.mean(eval_goals_reached)
 
-    def plot_training_progress(self):
-        """Plot the training progress."""
+    def plot_training_progress(self, save_path=None):
+        """
+        Plot the training progress.
+        
+        Args:
+            save_path: Optional path to save the figure
+        """
         fig, axs = plt.subplots(3, 1, figsize=(10, 12))
         
         # Plot rewards
@@ -347,7 +356,12 @@ class HierarchicalQLearningAgent:
         axs[2].set_ylabel('Goals Reached')
         
         plt.tight_layout()
-        plt.savefig("training_progress.png")
+        
+        # Save if path provided
+        if save_path:
+            plt.savefig(save_path)
+            print(f"Training progress saved to {save_path}")
+        
         plt.show()
     
     def save(self, filename='hierarchical_agent.pkl'):
@@ -390,5 +404,104 @@ class HierarchicalQLearningAgent:
         self.episode_steps = data['episode_steps']
         self.goals_reached = data['goals_reached']
         self.dirichlet_probabilities = data.get('dirichlet_probabilities', None)
+        self.training_started = True
         
         print(f"Agent loaded from {filename}")
+
+    def visualize_q_tables(self, save_path=None):
+        """
+        Visualize high and low Q-tables for the current state.
+        
+        Args:
+            save_path: Optional path to save the figure
+        """
+        import matplotlib.pyplot as plt
+        
+        # Get current state (for visualization purposes)
+        state, _ = self.env.reset()
+        
+        # Setup the figure
+        fig, axs = plt.subplots(1, 2, figsize=(20, 8))
+        
+        # High Q-table visualization (goal selection)
+        size = self.env.size
+        high_q_grid = np.zeros((size, size))
+        
+        # Fill the grid with high-level Q-values
+        for goal_state in self.goal_states:
+            goal_pos = self.env.state_to_pos[goal_state]
+            high_q_grid[goal_pos[0], goal_pos[1]] = self.high_q_table[state][goal_state]
+        
+        # Plot high-level Q-values
+        im1 = axs[0].imshow(high_q_grid, cmap='viridis')
+        axs[0].set_title(f'High-Level Q-Values (Goal Selection) from State {state}')
+        axs[0].set_xlabel('Column')
+        axs[0].set_ylabel('Row')
+        fig.colorbar(im1, ax=axs[0], label='Goal Value')
+        
+        # Add text annotations for goal values
+        for goal_state in self.goal_states:
+            goal_pos = self.env.state_to_pos[goal_state]
+            i, j = goal_pos
+            value = self.high_q_table[state][goal_state]
+            axs[0].text(j, i, f'{value:.2f}', ha='center', va='center', 
+                        color='white' if value > np.mean(high_q_grid) else 'black')
+        
+        # Low Q-table visualization (action selection)
+        # Choose a goal for low-level visualization
+        if hasattr(self, 'current_goal') and self.current_goal is not None:
+            goal = self.current_goal
+        else:
+            goal = list(self.goal_states)[0]  # First goal
+        
+        # Get best action for each state
+        action_names = ['Left', 'Down', 'Right', 'Up']
+        best_action_grid = np.zeros((size, size))
+        max_q_grid = np.zeros((size, size))  # For tracking max Q-values
+        
+        # Fill grids with best actions and their Q-values
+        for i in range(size):
+            for j in range(size):
+                cell_state = self.env.pos_to_state.get((i, j))
+                if cell_state is not None:
+                    q_values = [self.low_q_tables[goal].get((cell_state, a), 0) for a in range(self.n_actions)]
+                    best_action = np.argmax(q_values)
+                    best_action_grid[i, j] = best_action
+                    max_q_grid[i, j] = max(q_values)
+        
+        # Plot low-level Q-values as best actions
+        im2 = axs[1].imshow(best_action_grid, cmap='tab10', vmin=0, vmax=3)
+        axs[1].set_title(f'Low-Level Best Actions for Goal at {self.env.state_to_pos[goal]}')
+        axs[1].set_xlabel('Column')
+        axs[1].set_ylabel('Row')
+        
+        # Colorbar for action values
+        cbar = fig.colorbar(im2, ax=axs[1], label='Action', ticks=[0, 1, 2, 3])
+        cbar.ax.set_yticklabels(action_names)
+        
+        # Add text annotations showing action and Q-value
+        for i in range(size):
+            for j in range(size):
+                cell_state = self.env.pos_to_state.get((i, j))
+                if cell_state is not None:
+                    action = int(best_action_grid[i, j])
+                    q_val = max_q_grid[i, j]
+                    text = f"{action_names[action][0]}\n{q_val:.1f}"
+                    axs[1].text(j, i, text, ha='center', va='center', 
+                              color='black', fontsize=8)
+        
+        # Plot the goal position
+        goal_pos = self.env.state_to_pos[goal]
+        axs[1].plot(goal_pos[1], goal_pos[0], 'yo', markersize=12, alpha=0.7)
+        
+        plt.tight_layout()
+        
+        # Save if path provided
+        if save_path:
+            plt.savefig(save_path, dpi=200, bbox_inches='tight')
+            print(f"Q-tables visualization saved to {save_path}")
+        
+        # Display but don't block
+        plt.draw()
+        plt.pause(0.1)
+        plt.close()

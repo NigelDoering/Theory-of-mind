@@ -1,4 +1,3 @@
-
 import sys
 import gymnasium as gym
 from gymnasium import spaces
@@ -10,71 +9,51 @@ import json
 
 class MultiGoalFrozenLakeEnv(gym.Env):
     """
-    Multi-goal FrozenLake environment with randomized goals and holes.
-    
-    The agent must navigate to collect rewards from multiple goals before
-    reaching a final goal. The environment is regenerated for each episode.
+    Multi-goal FrozenLake environment with support for multiple weighted goals.
     """
     metadata = {'render_modes': ['human', 'rgb_array', 'ansi'], 'render_fps': 4}
     
     def __init__(
         self,
-        size: int = 8,
-        max_steps: int = 100,
-        n_goals: int = 5,
-        n_holes: int = 10,
-        is_slippery: bool = False,
-        seed: Optional[int] = None,
-        base_reward: float = 10.0,
-        final_goal_reward: float = 10.0,
-        hole_reward: float = -1.0,
-        step_reward: float = -0.1,
-        render_mode: Optional[str] = None
+        size=8,
+        max_steps=100,
+        n_goals=5,
+        n_holes=8,
+        is_slippery=False,
+        seed=None,
+        render_mode=None,
+        randomize_start=True,
+        fixed_map=False
     ):
-        """
-        Initialize the environment.
-        
-        Args:
-            size: Size of the grid world (size x size)
-            n_goals: Number of goals
-            n_holes: Number of holes
-            is_slippery: Whether movement is stochastic
-            seed: Random seed
-            base_reward: Base reward value for scaling Dirichlet distribution
-            final_goal_reward: Reward for reaching the final goal
-            hole_reward: Reward for falling into a hole
-            step_reward: Reward for each step taken
-            render_mode: Rendering mode
-        """
+        """Initialize the environment with specified parameters."""
         self.size = size
         self.max_steps = max_steps
         self.n_goals = n_goals
         self.n_holes = n_holes
         self.is_slippery = is_slippery
-        self.base_reward = base_reward
-        self.final_goal_reward = final_goal_reward
-        self.hole_reward = hole_reward
-        self.step_reward = step_reward
+        self.base_reward = 10.0
+        self.hole_reward = -1.0
+        self.step_reward = -0.01
+        self.randomize_start = randomize_start
+        self.fixed_map = fixed_map
         
         # Set random seed
         self.np_random = np.random.RandomState(seed)
         random.seed(seed)
         np.random.seed(seed)
         
-        # Set up action and observation spaces
-        # 0: Left, 1: Down, 2: Right, 3: Up, 4: Collect
-        self.action_space = spaces.Discrete(5)
-        # Observation is the current state (position)
+        # Setup spaces
+        self.action_space = spaces.Discrete(4)  # Left, down, right, up
         self.observation_space = spaces.Discrete(size * size)
         
-        # State mappings
-        self.agent_pos = (0, 0)  # Agent's position
+        # Initialize state mappings
+        self.agent_pos = (0, 0)
         self.steps_taken = 0
         self.agent_state = 0
         self.state_to_pos = {}
         self.pos_to_state = {}
         
-        # Set up state mappings
+        # Map states to positions and vice versa
         for i in range(size):
             for j in range(size):
                 state = i * size + j
@@ -87,24 +66,24 @@ class MultiGoalFrozenLakeEnv(gym.Env):
         self.goal_positions = []
         self.hole_positions = []
         self.start_pos = None
-        self.final_goal_pos = None
         self.visited_goals = set()
-        self.collected_goals = set()
         
-        # Initialize Dirichlet parameters
+        # Initialize parameters for reward distribution
         self.agent_alpha = None
         self.dirichlet_probs = None
-        
-        # Initialize descriptor
-        self.desc = None
         
         # Generate initial map
         self._generate_map()
         
-        # Save original descriptor for reset
-        self.initial_desc = self.desc.copy()
+        # Save map if using fixed layout
+        if self.fixed_map:
+            self.fixed_goal_positions = self.goal_positions.copy()
+            self.fixed_hole_positions = self.hole_positions.copy()
+            self.fixed_goal_rewards = dict(self.goal_rewards)
+            self.fixed_state_rewards = dict(self.state_rewards) 
+            self.fixed_desc = self.desc.copy()
         
-        # Rendering
+        # Rendering settings
         self.render_mode = render_mode
         self.window = None
         self.clock = None
@@ -153,55 +132,66 @@ class MultiGoalFrozenLakeEnv(gym.Env):
         return self.desc
     
     def _generate_goal_rewards(self):
-        """Generate goal rewards using Dirichlet distribution."""
+        """Generate goal rewards using Dirichlet distribution and scale to 1-10 range."""
         # Create alpha parameter with slight variation for each goal
-        self.agent_alpha = np.random.normal(1, 0.2, size=len(self.goal_positions))
+        self.agent_alpha = np.random.normal(1, 0.2, size=self.n_goals)
         
         # Generate Dirichlet distribution
-        self.dirichlet_probs = np.random.dirichlet(alpha=np.ones(len(self.goal_positions))*self.agent_alpha, size=1)[0]
+        self.dirichlet_probs = np.random.dirichlet(alpha=self.agent_alpha, size=1)[0]
         
-        # Scale probabilities by base reward
-        rewards = self.dirichlet_probs * self.base_reward
+        # Scale rewards to be between 1-10 (min-max scaling)
+        min_val = 1.0
+        max_val = 10.0
+        scaled_rewards = min_val + (self.dirichlet_probs * (max_val - min_val))
         
-        # Print rewards for debugging
-        print(f"Debug - Goal rewards: {rewards}")
-        
-        # Set the reward for the final goal
-        final_goal_index = random.randint(0, len(self.goal_positions) - 1)
-        self.final_goal_pos = self.goal_positions[final_goal_index]
-        state = self.pos_to_state[self.final_goal_pos]
-        self.goal_rewards[self.final_goal_pos] = self.final_goal_reward
-        self.state_rewards[state] = self.final_goal_reward
-        self.desc[self.final_goal_pos] = b'O'  # Mark final goal
-        
-        # Set the rewards for the other goals
-        for i in range(len(self.goal_positions)):
-            if i != final_goal_index:
-                pos = self.goal_positions[i]
-                # Set the reward for the goal position
-                self.goal_rewards[pos] = rewards[i]
-                state = self.pos_to_state[pos]
-                self.state_rewards[state] = rewards[i]
+        # Set rewards for goals
+        for i, pos in enumerate(self.goal_positions):
+            self.goal_rewards[pos] = scaled_rewards[i]
+            state = self.pos_to_state[pos]
+            self.state_rewards[state] = scaled_rewards[i]
     
     def reset(self, seed=None, options=None):
-        """Reset the environment to start a new episode."""
+        """Reset the environment."""
         # Set seed if provided
         if seed is not None:
             self.np_random = np.random.RandomState(seed)
             random.seed(seed)
             np.random.seed(seed)
         
-        # Generate a new map with different positions
-        self._generate_map()
+        if self.fixed_map:
+            # Restore the saved map
+            self.goal_positions = self.fixed_goal_positions.copy()
+            self.hole_positions = self.fixed_hole_positions.copy() 
+            self.goal_rewards = dict(self.fixed_goal_rewards)
+            self.state_rewards = dict(self.fixed_state_rewards)
+            self.desc = self.fixed_desc.copy()
+        else:
+            # Generate a new map
+            self._generate_map()
         
         # Reset agent state
+        if self.randomize_start:
+            # Choose a random valid starting position
+            valid_positions = []
+            for i in range(self.size):
+                for j in range(self.size):
+                    pos = (i, j)
+                    if (pos not in self.goal_positions and 
+                        pos not in self.hole_positions):
+                        valid_positions.append(pos)
+            
+            if valid_positions:
+                self.start_pos = random.choice(valid_positions)
+                
         self.agent_pos = self.start_pos
         self.agent_state = self.pos_to_state[self.agent_pos]
         
         # Reset tracking variables
         self.visited_goals = set()
-        self.collected_goals = set()
         self.steps_taken = 0
+        
+        # Reset loop detection
+        self.previous_positions = []
         
         # Return initial state and info
         observation = self.agent_state
@@ -209,108 +199,84 @@ class MultiGoalFrozenLakeEnv(gym.Env):
             "agent_pos": self.agent_pos,
             "goal_positions": self.goal_positions,
             "goal_rewards": self.goal_rewards,
-            "final_goal_pos": self.final_goal_pos,
             "map": self.get_map_with_agent()
         }
         
         return observation, info
     
     def step(self, action):
-        """
-        Take a step in the environment.
+        """Take a step in the environment with diminishing returns for revisits"""
+        self.steps_taken += 1
         
-        Args:
-            action: 0-3 for movement, 4 for collect
-            
-        Returns:
-            observation, reward, terminated, truncated, info
-        """
-        # Check if action is collect
-        if action == 4:  # Collect action
-            reward = self._handle_collect_action()
-        else:  # Movement action
-            reward = self._handle_movement_action(action)
-        
-        # Add step penalty
-        reward += self.step_reward
-        
-        # Check if episode is done
+        # Initialize termination flags
         terminated = False
         truncated = False
         
-        # Check if agent fell into a hole
-        if self.agent_pos in self.hole_positions:
-            terminated = True
+        # Default step reward - smaller penalty for efficiency
+        reward = -0.05  # Reduced penalty to encourage exploration
         
-        # Check if agent reached the final goal
-        if self.agent_pos == self.final_goal_pos:
-            terminated = True
-        
-        # Check if maximum steps exceeded
-        self.steps_taken += 1
+        # Check for maximum steps
         if self.steps_taken >= self.max_steps:
             truncated = True
+        
+        # Process the movement action
+        old_pos = self.agent_pos
+        row, col = old_pos
+        
+        # Apply selected action (0: left, 1: down, 2: right, 3: up)
+        if action == 0:  # Left
+            col = max(0, col - 1)
+        elif action == 1:  # Down
+            row = min(self.size - 1, row + 1)
+        elif action == 2:  # Right
+            col = min(self.size - 1, col + 1)
+        elif action == 3:  # Up
+            row = max(0, row - 1)
+        
+        new_pos = (row, col)
+        
+        # Check if movement is valid
+        if new_pos in self.hole_positions:
+            # Fell in a hole
+            reward = -1.0  # Fixed penalty for falling in hole
+            terminated = True
+        else:
+            # Valid move
+            self.agent_pos = new_pos
+            
+            # Add reward shaping to encourage movement toward unvisited goals
+            unvisited_goals = [g for g in self.goal_positions if g not in self.visited_goals]
+            if unvisited_goals:
+                # Find closest unvisited goal distance
+                min_dist_before = min(abs(old_pos[0] - g[0]) + abs(old_pos[1] - g[1]) for g in unvisited_goals)
+                min_dist_after = min(abs(new_pos[0] - g[0]) + abs(new_pos[1] - g[1]) for g in unvisited_goals)
+                
+                # Reward for getting closer to a goal
+                if min_dist_after < min_dist_before:
+                    reward += 0.1  # Small shaping reward for progress
+                elif min_dist_after > min_dist_before:
+                    reward -= 0.05  # Small penalty for moving away
+            
+            # Check if at a goal position
+            if self.agent_pos in self.goal_positions:
+                if self.agent_pos not in self.visited_goals:
+                    # First visit - full reward
+                    goal_reward = self.goal_rewards.get(self.agent_pos, 0)
+                    reward += goal_reward
+                    self.visited_goals.add(self.agent_pos)
+                else:
+                    # Revisit - significantly diminished reward (10% of original)
+                    goal_reward = self.goal_rewards.get(self.agent_pos, 0) * 0.05
+                    reward += goal_reward
         
         # Return state, reward, done flags, and info
         observation = self.pos_to_state[self.agent_pos]
         info = {
             "agent_pos": self.agent_pos,
-            "visited_goals": self.visited_goals,
-            "collected_goals": self.collected_goals
+            "visited_goals": list(self.visited_goals)
         }
         
         return observation, reward, terminated, truncated, info
-    
-    def _handle_collect_action(self):
-        """Handle the collect action."""
-        state = self.pos_to_state[self.agent_pos]
-        reward = 0
-        
-        # Check if agent is at a goal
-        if self.agent_pos in self.goal_positions:
-            # Check if goal has already been collected
-            if self.agent_pos not in self.collected_goals:
-                # Collect goal
-                reward = self.goal_rewards[self.agent_pos]
-                self.collected_goals.add(self.agent_pos)
-                print(f"Collected goal at {self.agent_pos} with reward {reward}")
-        
-        return reward
-    
-    def _handle_movement_action(self, action):
-        """Handle movement action."""
-        reward = 0
-        
-        # Current position
-        i, j = self.agent_pos
-        
-        # Calculate next position
-        if action == 0:  # Left
-            j = max(0, j - 1)
-        elif action == 1:  # Down
-            i = min(self.size - 1, i + 1)
-        elif action == 2:  # Right
-            j = min(self.size - 1, j + 1)
-        elif action == 3:  # Up
-            i = max(0, i - 1)
-        
-        # Apply slippery effect if enabled
-        if self.is_slippery and random.random() < 0.33:
-            # Random movement in a different direction
-            directions = [(0, -1), (1, 0), (0, 1), (-1, 0)]
-            di, dj = random.choice(directions)
-            i = max(0, min(self.size - 1, i + di))
-            j = max(0, min(self.size - 1, j + dj))
-        
-        # Update agent position
-        self.agent_pos = (i, j)
-        
-        # Check if agent has visited a goal
-        if self.agent_pos in self.goal_positions and self.agent_pos not in self.visited_goals:
-            self.visited_goals.add(self.agent_pos)
-            # Note: Reward is only given when explicitly collecting
-        
-        return reward
     
     def get_map_with_agent(self):
         """Get a copy of the map with the agent's position marked."""
@@ -352,14 +318,10 @@ class MultiGoalFrozenLakeEnv(gym.Env):
                 if cell == 'H':  # Hole
                     grid[i, j] = [0.1, 0.1, 0.1]  # Dark gray
                 elif cell == 'G':  # Goal
-                    if (i, j) in self.collected_goals:
-                        grid[i, j] = [0.5, 0.5, 0.5]  # Gray (collected)
-                    elif (i, j) in self.visited_goals:
+                    if (i, j) in self.visited_goals:
                         grid[i, j] = [0.8, 0.4, 0.8]  # Purple (visited)
                     else:
                         grid[i, j] = [0.0, 0.8, 0.0]  # Green (unvisited)
-                elif cell == 'F':  # Final goal
-                    grid[i, j] = [1.0, 0.8, 0.0]  # Gold
                 elif cell == 'A':  # Agent
                     grid[i, j] = [1.0, 0.0, 0.0]  # Red
                 elif cell == 'S':  # Start
@@ -381,25 +343,20 @@ class MultiGoalFrozenLakeEnv(gym.Env):
                 if cell == 'A':
                     plt.text(j, i, 'A', ha='center', va='center', color='white', fontweight='bold')
                 elif cell == 'G':
-                    state_id = self.pos_to_state[(i, j)]
-                    reward = self.state_rewards.get(state_id, 0)
-                    if (i, j) in self.collected_goals:
-                        text = f'G\n{reward:.1f}\n[C]'
-                    else:
-                        text = f'G\n{reward:.1f}'
+                    reward = self.goal_rewards.get((i, j), 0)
+                    text = f'G\n{reward:.1f}'
                     plt.text(j, i, text, ha='center', va='center', 
-                             color='white' if (i, j) in self.collected_goals else 'black')
-                elif cell == 'F':
-                    plt.text(j, i, f'F\n{self.final_goal_reward}', ha='center', va='center', color='black')
+                             color='white' if (i, j) in self.visited_goals else 'black')
                 elif cell == 'H':
                     plt.text(j, i, 'H', ha='center', va='center', color='white')
                 elif cell == 'S':
                     plt.text(j, i, 'S', ha='center', va='center', color='black')
         
         # Add status text
-        collected_reward = sum(self.goal_rewards[pos] for pos in self.collected_goals)
+        collected_reward = sum(self.goal_rewards.get(pos, 0) for pos in self.visited_goals)
         plt.title(f"Steps: {self.steps_taken}, Collected: {collected_reward:.2f}, "
-                 f"Goals: {len(self.collected_goals)}/{len(self.goal_positions)}")
+                 f"Goals: {len(self.visited_goals)}/{len(self.goal_positions)}")
+        
         plt.grid(True, color='black', alpha=0.2)
         plt.tight_layout()
         
@@ -422,12 +379,12 @@ class MultiGoalFrozenLakeEnv(gym.Env):
             outfile.write(" ".join(row.decode("utf-8") if isinstance(row, bytes) else row))
             outfile.write("\n")
             
-        collected_reward = sum(self.goal_rewards[pos] for pos in self.collected_goals)
+        collected_reward = sum(self.goal_rewards[pos] for pos in self.visited_goals)
         outfile.write(f"Steps: {self.steps_taken}, Collected: {collected_reward:.2f}, "
-                     f"Goals: {len(self.collected_goals)}/{len(self.goal_positions)}\n")
+                     f"Goals: {len(self.visited_goals)}/{len(self.goal_positions)}\n")
     
     def close(self):
         """Close the environment."""
         if hasattr(self, 'fig') and self.fig is not None:
             plt.close(self.fig)
-            self.fig = None
+            self.fig is None
