@@ -131,6 +131,13 @@ class CampusEnvironment:
         """Reset all agents."""
         for agent in self.agents:
             agent.reset()
+
+    def reset_agents_ex1(self):
+        """Reset all agents for experiment 1."""
+        print("Using correct reset")
+        for agent in self.agents:
+            agent.reset_ex1()
+    
     
     def step(self):
         """Update all agents by one step."""
