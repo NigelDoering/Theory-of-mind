@@ -15,6 +15,7 @@ class Agent:
         # Navigation
         self.start_node = None
         self.goal_node = None
+        self.goal_distribution = None
         self.current_node = None
         self.next_node = None
         self.path = []

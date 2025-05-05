@@ -2,7 +2,7 @@ import numpy as np
 import networkx as nx
 
 class BToM:
-    def __init__(self, campus, agents, beta=1.0):
+    def __init__(self, campus, agents, goals, beta=1.0):
         """
         Initializes the BToM model.
         
@@ -17,18 +17,22 @@ class BToM:
         """
         self.campus = campus
         self.beta = beta
+        self.agents = agents
         
         print("Computing shortest paths...")
-        self.all_shortest_paths = dict(nx.all_pairs_shortest_path_length(campus.G))
+        self.all_shortest_paths = dict(nx.all_pairs_shortest_path_length(campus.G_undirected))
         print("Done")
         
         # Candidate goals are derived from the agents' goal nodes; duplicates assumed not to occur.
-        self.candidate_goals = [agent.goal_node for agent in agents]
+        self.candidate_goals = goals
         prior_prob = 1 / len(self.candidate_goals)
-        uniform_prior = {g: prior_prob for g in self.candidate_goals}
+        self.uniform_prior = {g: prior_prob for g in self.candidate_goals}
         
+        self.reset_posteriors()
+
+    def reset_posteriors(self):
         # Initialize posterior for each agent
-        self.agent_posteriors = {agent.id: uniform_prior.copy() for agent in agents}
+        self.agent_posteriors = {agent.id: self.uniform_prior.copy() for agent in self.agents}
 
     def Q_value(self, s, a, g):
         """
@@ -81,7 +85,7 @@ class BToM:
             new_posterior = {g: 1 / len(self.candidate_goals) for g in self.candidate_goals}
         return new_posterior
 
-    def update_agent_posterior_over_path(self, agent):
+    def update_agent_posterior_over_path(self, agent, path):
         """
         Updates and returns the list of posterior distributions over candidate goals for each step 
         along the agent's path.
@@ -96,7 +100,7 @@ class BToM:
         posterior_list : list of dicts
             A list where each element is the posterior distribution (dict) at that step.
         """
-        path = agent.path
+        #path = agent.path
         posterior_list = []
         
         # Initialize with the agent's current posterior (uniform)
