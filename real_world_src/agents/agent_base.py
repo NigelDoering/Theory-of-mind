@@ -26,7 +26,7 @@ class Agent:
         self.position = None  # This will be set during reset
         self.progress = 0.0
     
-    def reset(self, randomize_position=True):
+    def reset(self, goals, randomize_position=True):
         """Reset the agent to a random start and goal.
         
         Args:
@@ -36,22 +36,24 @@ class Agent:
         if self.environment is None:
             raise ValueError("Agent must be added to an environment before reset")
         
-        # Random start and goal nodes
-        self.start_node = self.environment.get_random_node()
+        # Set goal node
+        self.goal_node = int(np.random.choice(goals, size=1, p=self.goal_distribution)[0])
         
-        # Pick a goal node that's reasonably far from start
+        # Set start and current node
         while True:
-            self.goal_node = self.environment.get_random_node()
+            start_node = self.environment.get_random_node()
             try:
                 path = nx.shortest_path(self.environment.G_undirected, 
-                                       source=self.start_node, 
+                                       source=start_node, 
                                        target=self.goal_node, 
                                        weight='length')
-                if len(path) > 10:  # Make sure path is non-trivial
+                if len(path) >15:  # Make sure path is non-trivial
                     break
             except:
                 continue
-                
+        self.start_node = start_node
+        
+        # Pick a goal node that's reasonably far from start
         self.current_node = self.start_node
         self.next_node = None
         self.path = []

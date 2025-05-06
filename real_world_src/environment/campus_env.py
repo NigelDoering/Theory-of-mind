@@ -26,6 +26,7 @@ class CampusEnvironment:
         self.G = ox.graph_from_place(place_name, network_type="all")
         self.G_undirected = nx.Graph(self.G)
         
+        
         # Save the graph for future use
         ox.save_graphml(self.G, filepath="ucsd_campus.graphml")
         
@@ -46,6 +47,9 @@ class CampusEnvironment:
         self.agents = []
         
         print(f"Environment loaded with {len(self.nodes)} nodes and {len(self.edges)} edges")
+
+    def set_goals(self, goals):
+        self.goals = goals
     
     def get_random_node(self):
         """Return a random node from the graph."""
@@ -130,7 +134,7 @@ class CampusEnvironment:
     def reset_agents(self):
         """Reset all agents."""
         for agent in self.agents:
-            agent.reset()
+            agent.reset(self.goals)
 
     def reset_agents_ex1(self):
         """Reset all agents for experiment 1."""
