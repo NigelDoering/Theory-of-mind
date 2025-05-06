@@ -64,11 +64,11 @@ class TrajectoryCollector:
         
         return state
     
-    def finalize_episode(self):
+    def finalize_episode(self, episode_buffers):
         """
         Finalize the current episode and store completed trajectories.
         """
-        for agent_id, states in self.episode_buffers.items():
+        for agent_id, states in episode_buffers.items():
             if len(states) < 2:  # Need at least start and end
                 continue
                 
