@@ -262,14 +262,14 @@ class Simulator:
                 self.step()
                 step += 1
                 
-            print(f"Simulation completed in {step} steps")
+            #print(f"Simulation completed in {step} steps")
             
             # Finalize trajectory collection at the end
             if hasattr(self, 'trajectory_collector') and self.trajectory_collector:
                 self.trajectory_collector.finalize_episode()
             
             # Visualize final state
-            self.visualize_final_state()
+            #self.visualize_final_state()
     
     def visualize_final_state(self):
         """Visualize the final state of all agents with enhanced styling."""
