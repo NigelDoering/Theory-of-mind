@@ -99,3 +99,51 @@ def accuracy_along_path(path, true_goal, posteriors_by_step, goals):
             accs.append(1.0 if post[true_goal] >= maxp else 0.0)
 
     return accs
+
+def fooled_score(true_goal, p_dist, false_goal):
+    """
+    Fooled scores counts .
+    """
+    prob_true_goal = p_dist[true_goal]
+    prob_false_goal = p_dist[false_goal]
+    return prob_false_goal - prob_true_goal
+
+
+def fooled_along_path(path, true_goal, false_goal, posteriors_by_step, goals):
+    """
+    Compute Brier scores at 0%, 10%, …, 100% of the path.
+    
+    Parameters
+    ----------
+    path : list
+        The sequence of states (or state-action tuples).
+    true_goal : hashable
+        The ground-truth goal for this trajectory.
+    posteriors_by_step : dict[int, dict] or list[dict]
+        Either
+          * a dict mapping step index 1..n → posterior dict, OR
+          * a list of posterior dicts in step-order (len = n).
+        Each posterior dict maps each goal → P(goal | trajectory up to that step).
+    
+    Returns
+    -------
+    dict[float, float]
+        Mapping fraction → Brier score.
+    """
+    n = len(path) - 1
+    if n < 1:
+        raise ValueError("Path must have at least 2 states to define transitions")
+
+    # uniform prior for t=0
+    uniform = {g: 1.0/len(goals) for g in goals}
+
+    results = []
+    for frac in np.linspace(0, 1, 11):  # 0.0,0.1,...,1.0
+        t = int(np.floor(frac * n))
+        if t == 0:
+            p_dist = uniform
+        else:
+            p_dist = posteriors_by_step[t-1]
+        results.append(p_dist[false_goal])
+
+    return results
