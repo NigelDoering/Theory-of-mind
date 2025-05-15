@@ -185,3 +185,6 @@ real_world_src/visuals/[1-9][0-9]*/
 # Completely ignore these folders
 real_world_src/tom_results/
 real_world_src/visuals/
+*.png
+*.gif
+*.pdf
