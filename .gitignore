@@ -188,3 +188,5 @@ real_world_src/visuals/
 *.png
 *.gif
 *.pdf
+
+*.DS_Store
