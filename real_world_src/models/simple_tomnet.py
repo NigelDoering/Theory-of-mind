@@ -284,44 +284,6 @@ def main():
     print(f"# train examples: {len(examples_train)}")
     print(f"# test  examples: {len(examples_test)}")
 
-    def tomnet_collate(batch, T_q, pad_value=0):
-        """
-        batch: list of tuples from __getitem__()
-        sup_tensor:  K×T_sup
-        prefix:     [t] (list of ints)
-        next_idx:   scalar int
-        goal_idx:   scalar int
-
-        Returns:
-        sup_batch:  (B, K, T_sup)
-        prefix_batch: (B, T_q)
-        next_batch:   (B,)
-        goal_batch:   (B,)
-        prefix_lens:  (B,)  # optional if you need to mask
-        """
-        sup_list, prefix_list, next_list, goal_list = zip(*batch)
-        B = len(batch)
-
-        # stack support tensors
-        sup_batch = torch.stack(sup_list, dim=0)    # (B, K, T_sup)
-
-        # pad prefixes to length T_q
-        prefix_batch = torch.full((B, T_q), pad_value, dtype=torch.long)
-        prefix_lens  = torch.zeros(B, dtype=torch.long)
-        for i, p in enumerate(prefix_list):
-            L = min(len(p), T_q)
-            prefix_batch[i, :L] = p[:L]
-            prefix_lens[i]      = L
-
-        next_batch = torch.tensor(next_list, dtype=torch.long)     # (B,)
-        goal_batch = torch.tensor(goal_list, dtype=torch.long)     # (B,)
-
-        return sup_batch, prefix_batch, next_batch, goal_batch, prefix_lens
-
-    def tomnet_collate_fn(batch):
-        # use your existing tomnet_collate, but wrap it
-        return tomnet_collate(batch, T_q=T_q, pad_value=0)
-
     batch_size = 128
 
     train_ds = ToMNetDataset(examples_train, T_q=T_q, pad_value=0)
@@ -440,6 +402,93 @@ def main():
     print("Training complete. Best val loss:", best_val_loss)
 
     torch.save(model.state_dict(), "model_runs/tomnet_cpu.pth", _use_new_zipfile_serialization=False)
+
+def tomnet_collate(batch, T_q, pad_value=0):
+    """
+    batch: list of tuples from __getitem__()
+    sup_tensor:  K×T_sup
+    prefix:     [t] (list of ints)
+    next_idx:   scalar int
+    goal_idx:   scalar int
+
+    Returns:
+    sup_batch:  (B, K, T_sup)
+    prefix_batch: (B, T_q)
+    next_batch:   (B,)
+    goal_batch:   (B,)
+    prefix_lens:  (B,)  # optional if you need to mask
+    """
+    sup_list, prefix_list, next_list, goal_list = zip(*batch)
+    B = len(batch)
+
+    # stack support tensors
+    sup_batch = torch.stack(sup_list, dim=0)    # (B, K, T_sup)
+
+    # pad prefixes to length T_q
+    prefix_batch = torch.full((B, T_q), pad_value, dtype=torch.long)
+    prefix_lens  = torch.zeros(B, dtype=torch.long)
+    for i, p in enumerate(prefix_list):
+        L = min(len(p), T_q)
+        prefix_batch[i, :L] = p[:L]
+        prefix_lens[i]      = L
+
+    next_batch = torch.tensor(next_list, dtype=torch.long)     # (B,)
+    goal_batch = torch.tensor(goal_list, dtype=torch.long)     # (B,)
+
+    return sup_batch, prefix_batch, next_batch, goal_batch, prefix_lens
+
+def tomnet_collate_fn(batch):
+    # use your existing tomnet_collate, but wrap it
+    return tomnet_collate(batch, T_q=T_q, pad_value=0)
+
+def make_support_tensor(agent_id, episode_id, path_data, node2idx, K, T_sup):
+    # all eps for this agent
+    all_eps = [ep for ep in path_data.keys() if ep != episode_id]
+    # pick K random others:
+    support_eps = random.sample(all_eps, K)
+    sup_tensor = torch.zeros(K, T_sup, dtype=torch.long)
+    for k, ep in enumerate(support_eps):
+        raw = path_data[ep][agent_id]            # list of node‐ids
+        idxs = [node2idx[n] for n in raw]
+        L = min(len(idxs), T_sup)
+        sup_tensor[k, :L] = torch.tensor(idxs[:L], dtype=torch.long)
+    return sup_tensor  # (K×T_sup)
+
+def infer_goal_dists(
+    model, agent_id, test_ep,
+    path_data, node2idx, goal2idx,
+    K, T_sup, T_q,
+    device='cuda'
+):
+    model.eval()
+    # 1) build support once
+    sup     = make_support_tensor(agent_id, test_ep, path_data, node2idx, K, T_sup)
+    sup     = sup.to(device).unsqueeze(0)     # add batch‐dim → [1,K,T_sup]
+
+    raw_seq = path_data[test_ep][agent_id]
+    idxs    = [node2idx[n] for n in raw_seq]
+    N       = len(idxs)
+
+    goal_dists = []   # will be list of length N each [num_goals]
+    with torch.no_grad():
+        for t in range(1, N):
+            # build prefix up to t (we treat t=0 as “no steps seen”)
+            prefix_len = min(t, T_q)
+            # pad prefix to T_q
+            prefix = torch.zeros(T_q, dtype=torch.long)
+            if prefix_len>0:
+                prefix[:prefix_len] = torch.tensor(idxs[:prefix_len], dtype=torch.long)
+            # move to device and batch‐dim
+            prefix     = prefix.to(device).unsqueeze(0)       # [1,T_q]
+            prefix_len = torch.tensor([prefix_len], dtype=torch.long, device=device)
+
+            # forward through ToMNet
+            _, goal_logits = model(sup, prefix, prefix_len)   # [1, num_goals]
+            p_goal = F.softmax(goal_logits, dim=-1)[0]        # remove batch‐dim → [num_goals]
+
+            goal_dists.append(p_goal.cpu().numpy())
+
+    return goal_dists   # shape (N × num_goals) array
 
 if __name__ == "__main__":
     main()
