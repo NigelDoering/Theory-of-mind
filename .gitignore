@@ -190,3 +190,6 @@ real_world_src/visuals/
 *.pdf
 
 *.DS_Store
+
+*.graphml
+*.json
