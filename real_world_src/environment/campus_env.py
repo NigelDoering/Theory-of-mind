@@ -64,7 +64,7 @@ class CampusEnvironment:
     def get_nearest_node(self, point):
         """Find the nearest node to a given point (x, y)."""
         return ox.distance.nearest_nodes(self.G, X=[point[0]], Y=[point[1]])[0]
-    
+
     def get_node_coordinates(self, node):
         """Get coordinates of a specific node."""
         return self.node_coords[node]

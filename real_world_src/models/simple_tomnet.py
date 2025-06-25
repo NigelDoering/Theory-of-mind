@@ -22,8 +22,8 @@ sys.path.append(os.path.abspath("../.."))
 from real_world_src.environment.campus_env import CampusEnvironment
 from real_world_src.utils.run_manager import RunManager
 
-import multiprocessing as mp
-mp.set_start_method('fork', force=True)
+# import multiprocessing as mp
+# mp.set_start_method('fork', force=True)
 
 class CharacterNet(nn.Module):
     """
