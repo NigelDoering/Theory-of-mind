@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tom-lite
+  labels:
+    k8s-app: tom-lite
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      k8s-app: tom-lite
+  template:
+    metadata:
+      labels:
+        k8s-app: tom-lite
+    spec:
+
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: nvidia.com/gpu.product
+                    operator: In
+                    values:
+                      - NVIDIA-GeForce-RTX-4090 
+
+      tolerations:
+        - key: "msu-cache"
+          operator: "Exists"
+        - key: "nautilus.io/5g"
+          operator: "Exists"
+        - key: "nautilus.io/slow-network"
+          operator: "Exists"
+        - key: "node-role.kubernetes.io/control-plane"
+          operator: "Exists"
+        - key: "nautilus.io/csusb"
+          operator: "Exists"
+        - key: "nautilus.io/gitlab-issue"
+          operator: "Exists"
+
+      # nodeSelector:
+        # ensure scheduling on GPU nodes if your cluster labels them
+        # accelerator: nvidia-a100
+
+      containers:
+        - name: tom-lite
+          image: ubuntu:22.04
+          command:
+            - sh
+            - -c
+            - |
+              apt-get update && \
+              apt-get install -y --no-install-recommends ca-certificates && \
+              sleep infinity
+          # adjust OMP_NUM_THREADS etc. as desired
+          env:
+            - name: OMP_NUM_THREADS
+              value: "6"
+            - name: NVIDIA_MPS_ENABLE
+              value: "1"
+          resources:
+            requests:
+              cpu: "24"
+              memory: "64Gi"
+              ephemeral-storage: "32Gi"
+              nvidia.com/gpu: "2"
+            limits:
+              cpu: "28"
+              memory: "80Gi"
+              ephemeral-storage: "128Gi"
+              nvidia.com/gpu: "2"
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: cache-volume
+              mountPath: /dev/shm
+
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: hjepa-8t-pvc
+        - name: cache-volume
+          emptyDir:
+            medium: Memory
+            sizeLimit: "32Gi"
