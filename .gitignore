@@ -185,6 +185,10 @@ real_world_src/visuals/[1-9][0-9]*/
 # Completely ignore these folders
 real_world_src/tom_results/
 real_world_src/visuals/
+notebooks/agents.pkl 
+notebooks/data/goal_data.json
+notebooks/data/path_data.json
+notebooks/extended_btom.pkl 
 *.png
 *.gif
 *.pdf
