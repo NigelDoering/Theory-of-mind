@@ -453,6 +453,89 @@ python real_world_src/main.py --steps 100 --shortest 5 --random 3 --landmark 2
 campus = CampusEnvironment(use_cache=True)
 ```
 
+
+### 🚢 AIS Data Cleaning and Processing
+
+1. **Download Data**  
+   AIS data is downloaded from [https://web.ais.dk/aisdata/](https://web.ais.dk/aisdata/) — use the **daily** CSV files (not monthly). Save each file to:
+
+   
+# AIS Data Cleaning and Processing
+
+This repository contains utilities for cleaning and processing AIS (Automatic Identification System) data downloaded from the Danish Maritime Authority.
+
+---
+
+## 📥 1. Download Daily AIS Data
+
+AIS data should be downloaded from the Danish Maritime Authority website:
+
+👉 [https://web.ais.dk/aisdata/](https://web.ais.dk/aisdata/)
+
+Download the **daily CSV files** (not the monthly files) and save each file to the following directory:
+
+```
+./notebooks/data/AIS_data/
+```
+
+---
+
+## 🧹 2. Clean a Single Day of AIS Data
+
+Run the following script to clean and process a single day’s AIS data:
+
+```bash
+python utils/clean_ais_single_day.py <filename.csv>
+```
+
+This script:
+- Filters out invalid or noisy data points
+- Groups the AIS messages by unique IMO number
+- Saves a cleaned CSV file for each ship in the following directory structure:
+
+```
+./notebooks/data/trips/<YYYY_MM_DD>/IMO_<imo>.csv
+```
+
+---
+
+## 🧭 3. Segment Full IMO Tracks Into Distinct Voyages
+
+Once multiple days of data have been cleaned, run the following script to segment voyages:
+
+```bash
+python utils/process_imo_trips.py
+```
+
+This script:
+- Loads all per-IMO files across dates
+- Concatenates them into a full track per IMO
+- Segments the full track into distinct voyages using a **4-hour gap threshold**
+- Saves each segmented voyage into:
+
+```
+./notebooks/data/processed_trips/IMO_<imo>_trip_<n>.csv
+```
+
+---
+
+## 🎯 4. Output
+
+Each file in:
+
+```
+./notebooks/data/processed_trips/
+```
+
+now represents a **single trajectory (voyage)** that can be directly used for model training or downstream analysis.
+
+---
+
+## 🛠 Notes
+
+- Ensure filenames follow the convention `aisdk-YYYY-MM-DD.csv` when passed to the cleaning script.
+- All scripts assume that IMO numbers are consistent across dates.
+- Output directories will be created automatically if they do not exist.
 ---
 
 ## ⚠️ Troubleshooting
