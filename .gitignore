@@ -197,3 +197,8 @@ notebooks/extended_btom*
 
 *.graphml
 *.json
+
+# Ignore the AIS data
+notebooks/data/AIS_data/*
+notebooks/data/trips/*
+notebooks/data/processed_trips/*
