@@ -197,6 +197,13 @@ notebooks/extended_btom*
 
 *.graphml
 *.json
+*.h5
+
+wandb/
+*/wandb/
+
+cache/
+*/cache/
 
 # Ignore the AIS data
 notebooks/data/AIS_data/*
