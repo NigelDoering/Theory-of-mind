@@ -197,7 +197,12 @@ notebooks/extended_btom*
 
 *.graphml
 *.json
+!data/1k/*.json
+!data/5k/*.json
+
 *.h5
+!data/1k/*.h5
+!data/5k/*.h5
 
 wandb/
 */wandb/
