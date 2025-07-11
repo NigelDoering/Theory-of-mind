@@ -16,6 +16,15 @@ import os
 import sys
 import re
 
+def extract_date_from_filename(filename):
+    # Look for date pattern YYYY-MM-DD in filename
+    match = re.search(r"\d{4}-\d{2}-\d{2}", filename)
+    if not match:
+        print("Error: Filename must include a date in format YYYY-MM-DD (e.g., aisdk-2025-01-01.csv)")
+        sys.exit(1)
+    date_str = match.group(0).replace("-", "_")
+    return date_str
+
 def build_dir_name(date):
     return f"./notebooks/data/trips/{date}/"
 
@@ -190,14 +199,6 @@ def remove_outliers_and_filter_stationary(ais, dst_dir):
         # Lastly, save track to file
         save_data(df, dst_dir)
 
-def extract_date_from_filename(filename):
-    # Look for date pattern YYYY-MM-DD in filename
-    match = re.search(r"\d{4}-\d{2}-\d{2}", filename)
-    if not match:
-        print("Error: Filename must include a date in format YYYY-MM-DD (e.g., aisdk-2025-01-01.csv)")
-        sys.exit(1)
-    date_str = match.group(0).replace("-", "_")
-    return date_str
 
 def main():
     parser = argparse.ArgumentParser(description="Run AIS cleaning script.")
