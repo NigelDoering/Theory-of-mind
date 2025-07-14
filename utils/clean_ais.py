@@ -140,6 +140,64 @@ def assign_trip_numbers(df, timestamp_col="# Timestamp", gap_hours=4):
     df["trip_number"] = trip_numbers
     return df
 
+from tqdm import tqdm
+from haversine import haversine
+import pandas as pd
+
+def bin_by_distance(df, distance_threshold_km=2.0):
+    """
+    Optimized binning of AIS rows by distance for each (IMO, trip_number) group.
+    Rows within distance_threshold_km of the current bin start are grouped and averaged.
+
+    Parameters:
+        df (pd.DataFrame): AIS DataFrame with 'IMO', 'trip_number', '# Timestamp', 'Latitude', 'Longitude'
+        distance_threshold_km (float): Max distance (in km) for points to be grouped together
+
+    Returns:
+        pd.DataFrame: Binned AIS data with averaged rows
+    """
+    binned_data = []
+
+    # Iterate with tqdm for progress monitoring
+    grouped = df.groupby(["IMO", "trip_number"])
+    for (imo, trip), group in tqdm(grouped, desc="Binning by distance", unit="trip"):
+        group = group.sort_values("# Timestamp").reset_index(drop=True)
+        latitudes = group["Latitude"].values
+        longitudes = group["Longitude"].values
+        timestamps = group["# Timestamp"].values
+
+        i = 0
+        while i < len(group):
+            bin_latitudes = [latitudes[i]]
+            bin_longitudes = [longitudes[i]]
+            bin_timestamps = [timestamps[i]]
+
+            bin_start_coord = (latitudes[i], longitudes[i])
+            j = i + 1
+
+            while j < len(group):
+                next_coord = (latitudes[j], longitudes[j])
+                dist = haversine(bin_start_coord, next_coord)
+                if dist < distance_threshold_km:
+                    bin_latitudes.append(latitudes[j])
+                    bin_longitudes.append(longitudes[j])
+                    bin_timestamps.append(timestamps[j])
+                    j += 1
+                else:
+                    break
+
+            binned_data.append({
+                "IMO": imo,
+                "trip_number": trip,
+                "# Timestamp": min(bin_timestamps),  # Can use mean if preferred
+                "Latitude": sum(bin_latitudes) / len(bin_latitudes),
+                "Longitude": sum(bin_longitudes) / len(bin_longitudes),
+            })
+
+            i = j
+
+    return pd.DataFrame(binned_data)
+
 
 def main():
     """Main script for cleaning and processing all AIS files in the /notebooks/data/AIS_data/ directory."""
@@ -161,8 +219,13 @@ def main():
         all_cleaned = pd.concat(combined_df, ignore_index=True)
         print("🧮 Assigning trip numbers...")
         all_cleaned = assign_trip_numbers(all_cleaned)
+
+        print("📏 Binning by distance...")
+        all_cleaned = bin_by_distance(all_cleaned, distance_threshold_km=2.0)
+
         keep_cols = ["IMO", "# Timestamp", "Latitude", "Longitude", "trip_number"]
         all_cleaned = all_cleaned[keep_cols]
+
         out_path = "./notebooks/data/trips/cleaned_combined_all_days.csv"
         all_cleaned.to_csv(out_path, index=False)
         print(f"✅ Combined cleaned data saved to {out_path} ({len(all_cleaned)} rows)")
