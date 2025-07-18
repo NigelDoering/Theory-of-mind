@@ -329,44 +329,39 @@ class CampusDataLoader:
             'mask': mask
         }
     
-    def prepare_graph_data(self):
+    def prepare_graph_data(self, save_cuda_path=None, device=None):
         """
         Prepare graph data from the campus environment.
-        
         Returns:
-            Dict with 'x', 'edge_index' tensors
+            Dict with 'x', 'edge_index' tensors (pinned memory)
+        If save_cuda_path is provided, saves the dict with tensors on device to that path.
         """
         # Get graph from environment
         if self.env is None:
             raise ValueError("Environment not loaded")
-        
         G = self.env.G
-        
         # Create node features (using node coordinates)
         node_features = []
         node_mapping = {}
-        
         for i, node in enumerate(G.nodes()):
-            # Get node coordinates
             coords = (G.nodes[node]['y'], G.nodes[node]['x'])  # lat, lon
-            node_features.append([coords[0], coords[1], 0.0, 0.0])  # Add some padding features
+            node_features.append([coords[0], coords[1], 0.0, 0.0])
             node_mapping[node] = i
-        
         # Create edge index
         edge_list = []
         for u, v in G.edges():
             if u in node_mapping and v in node_mapping:
                 edge_list.append([node_mapping[u], node_mapping[v]])
                 edge_list.append([node_mapping[v], node_mapping[u]])  # Undirected graph
-        
-        # Convert to tensors
-        x = torch.tensor(node_features, dtype=torch.float)
-        edge_index = torch.tensor(edge_list, dtype=torch.long).t().contiguous()
-        
-        return {
-            'x': x,
-            'edge_index': edge_index
-        }
+        # Convert to tensors with pin_memory
+        x = torch.tensor(node_features, dtype=torch.float).pin_memory()
+        edge_index = torch.tensor(edge_list, dtype=torch.long).pin_memory().t().contiguous()
+        graph_data = {'x': x, 'edge_index': edge_index}
+        # Optionally move to device and save
+        if save_cuda_path and device is not None:
+            graph_data_cuda = {k: v.to(device, non_blocking=True) for k, v in graph_data.items()}
+            torch.save(graph_data_cuda, save_cuda_path)
+        return graph_data
 
     def get_goal_distribution(self, agent_id):
         """

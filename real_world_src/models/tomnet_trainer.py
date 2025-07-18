@@ -126,7 +126,7 @@ def train_with_real_data_distributional(
         dataset,
         batch_size=batch_size,
         shuffle=True,
-        num_workers=num_workers,
+        num_workers=4,
         pin_memory=True,
         collate_fn=episode_goal_collate_fn
     )
@@ -160,7 +160,7 @@ def train_with_real_data_distributional(
             recon_loss = model.latent_vae.recon_loss(fused, latents)
             goal_loss = nn.CrossEntropyLoss()(goal_logits, goal_idxs)
             loss = kl_loss + recon_loss + goal_loss
-                    loss.backward()
+            loss.backward()
             optimizer.step()
             total_kl += kl_loss.item()
             total_recon += recon_loss.item()
@@ -236,4 +236,5 @@ def train_with_real_data_distributional(
     torch.save(model.state_dict(), "tom_graph_causalnet_distributional.pth")
 
 if __name__ == "__main__":
-    train_with_real_data_distributional(epochs=25, batch_size=256, log_wandb=True, top_k=5, max_seq_len=100)
+    # Set up for distributional goal prediction and hybrid evaluation
+    train_with_real_data_distributional(epochs=25, batch_size=16, log_wandb=True, top_k=5, max_seq_len=100)
