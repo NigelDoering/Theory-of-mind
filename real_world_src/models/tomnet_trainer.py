@@ -1,216 +1,270 @@
+import os
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import numpy as np
-from torch.utils.data import DataLoader, Dataset
-from tqdm import tqdm
-from real_world_src.models.tomnet import ToMNet
+import wandb
+from torch.utils.data import Dataset, DataLoader
 
-class TrajectoryDataset(Dataset):
-    """Dataset for ToMnet training."""
-    
-    def __init__(self, examples):
-        self.examples = examples
-        
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning)
+
+from real_world_src.models.tom_graph_encoder import ToMGraphEncoder, CampusDataLoader
+from real_world_src.models.tom_latent_mind import HierarchicalMindStateVAE
+from real_world_src.models.tom_goal_predictor import GoalPredictorHead
+# -----------------------------
+# ToM-GraphCausalNet Trainer
+# -----------------------------
+class ToMGraphCausalNet(nn.Module):
+    """
+    End-to-end model: Encoder + Hierarchical Latent Mind-State + Goal Predictor
+    """
+    def __init__(self, node_feat_dim=4, time_emb_dim=16, hidden_dim=128, latent_dim=32, n_layers=2, n_heads=4, dropout=0.1, use_gat=True, goal_output_type='coord', num_nodes=None, mdn_components=0):
+        super().__init__()
+        self.encoder = ToMGraphEncoder(
+            node_feat_dim=node_feat_dim,
+            time_emb_dim=time_emb_dim,
+            hidden_dim=hidden_dim,
+            n_layers=n_layers,
+            n_heads=n_heads,
+            dropout=dropout,
+            use_gat=use_gat
+        )
+        self.latent_vae = HierarchicalMindStateVAE(
+            input_dim=hidden_dim,
+            latent_dim=latent_dim,
+            hidden_dim=hidden_dim
+        )
+        self.goal_head = GoalPredictorHead(
+            latent_dim=latent_dim,
+            output_type=goal_output_type,
+            num_nodes=num_nodes,
+            mdn_components=mdn_components
+        )
+
+    def forward(self, trajectory_data, graph_data):
+        fused = self.encoder(trajectory_data, graph_data)  # (batch_size, hidden_dim)
+        latents = self.latent_vae(fused)
+        goal_pred = self.goal_head(latents['z_belief'], latents['z_desire'], latents['z_intention'])
+        return latents, fused, goal_pred
+
+# -----------------------------
+# PyTorch Dataset for Per-Episode Supervision
+# -----------------------------
+class EpisodeGoalDataset(Dataset):
+    def __init__(self, path_data, goal_data, node_id_mapping, max_seq_len=100):
+        self.samples = []
+        valid_node_ids = set(node_id_mapping.keys())
+        for episode, agent_dict in goal_data.items():
+            for agent_id, goal_node in agent_dict.items():
+                # Only keep if goal_node is valid
+                if goal_node not in valid_node_ids:
+                    continue
+                # Get trajectory for this agent in this episode
+                if agent_id in path_data.get(episode, {}):
+                    traj = path_data[episode][agent_id]
+                    # Filter out invalid nodes
+                    traj = [n for n in traj if n in valid_node_ids]
+                    if len(traj) == 0:
+                        continue
+                    # Map to indices
+                    traj = [node_id_mapping[n] for n in traj]
+                    # Pad or truncate
+                    if len(traj) < max_seq_len:
+                        traj = traj + [0] * (max_seq_len - len(traj))
+                    else:
+                        traj = traj[:max_seq_len]
+                    goal_idx = node_id_mapping[goal_node]
+                    self.samples.append((traj, goal_idx))
+
     def __len__(self):
-        return len(self.examples)
+        return len(self.samples)
         
     def __getitem__(self, idx):
-        example = self.examples[idx]
-        
-        # Process past_trajectories
-        past_trajs = self._process_trajectories(example['past_trajectories'])
-        
-        # Process recent trajectory
-        recent_traj = torch.tensor(example['recent_trajectory'], dtype=torch.float32)
-        
-        # Process current state
-        current_state = torch.tensor(example['current_state'], dtype=torch.float32)
-        
-        # Process target (next position)
-        target = torch.tensor(example['target'], dtype=torch.float32)
-        
-        return past_trajs, recent_traj, current_state, target
-    
-    def _process_trajectories(self, trajectories):
-        """Convert trajectory list to fixed-length tensor."""
-        # For simplicity, just use the state encodings
-        # In a full implementation, we need to handle variable length sequences
-        max_traj_len = 20
-        max_num_trajs = 5
-        
-        # Fixed size tensor
-        result = torch.zeros((max_num_trajs, max_traj_len, 5), dtype=torch.float32)
-        
-        for i, traj in enumerate(trajectories[:max_num_trajs]):
-            for j, step in enumerate(traj[:max_traj_len]):
-                if 'state_encoding' in step:
-                    result[i, j] = torch.tensor(step['state_encoding'], dtype=torch.float32)
-        
-        return result
+        traj, goal_idx = self.samples[idx]
+        return torch.tensor(traj, dtype=torch.long), goal_idx
 
-class ToMNetTrainer:
-    """Trainer for the ToMNet model."""
-    
-    def __init__(self, input_dim, state_dim, hidden_dim, output_dim, lr=0.001, device=None):
-        """
-        Initialize the ToMNet trainer.
-        
-        Args:
-            input_dim: Dimension of input features
-            state_dim: Dimension of current state features 
-            hidden_dim: Dimension of hidden layers
-            output_dim: Dimension of output predictions
-            lr: Learning rate
-            device: Device to train on (cpu or cuda)
-        """
-        self.input_dim = input_dim
-        self.state_dim = state_dim
-        self.hidden_dim = hidden_dim
-        self.output_dim = output_dim
-        self.lr = lr
-        self.device = device or torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        
-        # Create the model
-        self.model = ToMNet(
-            input_dim=input_dim,
-            state_dim=state_dim,
-            hidden_dim=hidden_dim,
-            output_dim=output_dim
-        ).to(self.device)
-        
-        # Loss function and optimizer
-        self.criterion = nn.MSELoss()
-        self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
-        
-    def train(self, trajectory_collector, batch_size=32, epochs=20):
-        """
-        Train the ToMNet model.
-        
-        Args:
-            trajectory_collector: TrajectoryCollector with recorded trajectories
-            batch_size: Batch size for training
-            epochs: Number of epochs
-            
-        Returns:
-            Trained ToMNet model
-        """
-        print(f"Starting ToMNet training on {self.device}...")
-        
-        # Prepare data
-        all_species = list(trajectory_collector.trajectories.keys())
-        
-        # Training loop
-        self.model.train()
-        
-        for epoch in range(epochs):
-            epoch_loss = 0.0
-            batch_count = 0
-            
-            # Process each species
-            for species in all_species:
-                trajectories = trajectory_collector.trajectories[species]
-                
-                if len(trajectories) < 3:  # Need at least a few trajectories
-                    print(f"Skipping {species} - not enough data")
-                    continue
-                
-                # Split trajectories into past, recent, and future
-                train_samples = []
-                
-                for i, trajectory in enumerate(trajectories):
-                    if len(trajectory) < 5:  # Skip very short trajectories
-                        continue
-                    
-                    # Use up to 5 other trajectories as past trajectories
-                    past_traj_indices = [j for j in range(len(trajectories)) if j != i]
-                    past_traj_indices = past_traj_indices[:5]  # Limit to 5
-                    
-                    if not past_traj_indices:  # Skip if no past trajectories
-                        continue
-                    
-                    past_trajs = [trajectories[j] for j in past_traj_indices]
-                    
-                    # Use first half as recent, second half as future for prediction
-                    split_point = len(trajectory) // 2
-                    if split_point < 2:  # Ensure at least 2 points for recent
-                        continue
-                        
-                    recent_traj = trajectory[:split_point]
-                    future_traj = trajectory[split_point:]
-                    
-                    train_samples.append((past_trajs, recent_traj, future_traj))
-                
-                # Skip if not enough samples
-                if len(train_samples) < batch_size:
-                    print(f"Skipping {species} - not enough valid samples")
-                    continue
-                
-                # Train in batches
-                for batch_start in range(0, len(train_samples), batch_size):
-                    batch_end = min(batch_start + batch_size, len(train_samples))
-                    batch = train_samples[batch_start:batch_end]
-                    
-                    # Prepare batch data
-                    past_batch = []
-                    recent_batch = []
-                    future_batch = []
-                    
-                    for past_trajs, recent_traj, future_traj in batch:
-                        # Prepare past trajectories
-                        past_tensor, _ = trajectory_collector.get_trajectory_tensor(past_trajs)
-                        past_batch.append(past_tensor)
-                        
-                        # Prepare recent trajectory
-                        fixed_length = 50  # Use same fixed length as in get_trajectory_tensor
-                        recent_tensor, _ = trajectory_collector.get_trajectory_tensor(
-                            [recent_traj], fixed_length=fixed_length)
-                        recent_batch.append(recent_tensor.squeeze(0))  # Remove batch dim
-                        
-                        # Prepare future trajectory (target)
-                        future_tensor, _ = trajectory_collector.get_trajectory_tensor(
-                            [future_traj], fixed_length=fixed_length)
-                        future_batch.append(future_tensor.squeeze(0))  # Remove batch dim
-                    
-                    # Convert to tensors and move to device
-                    past_tensor = torch.stack(past_batch).to(self.device)
-                    recent_tensor = torch.stack(recent_batch).to(self.device)
-                    
-                    # Current state is the last state of recent trajectory
-                    current_state = torch.stack([r[-1] for r in recent_batch]).to(self.device)
-                    
-                    # Target is the future trajectory
-                    target = torch.stack(future_batch).to(self.device)
-                    
-                    # Forward pass
-                    self.optimizer.zero_grad()
-                    output = self.model(past_tensor, recent_tensor, current_state)
-                    
-                    # Output and target are both [batch_size, seq_len, output_dim]
-                    pred_steps = min(output.shape[1], target.shape[1], 5)
-                    
-                    # Explicitly print shapes for debugging
-                    if epoch == 0 and batch_count == 0:
-                        print(f"Output shape: {output.shape}")
-                        print(f"Target shape: {target.shape}")
-                        print(f"Using first {pred_steps} steps for prediction")
-                    
-                    # Compute loss on matching dimensions
-                    loss = self.criterion(output[:, :pred_steps, :], target[:, :pred_steps, :])
-                    
-                    # Backward pass and optimize
-                    loss.backward()
-                    self.optimizer.step()
-                    
-                    epoch_loss += loss.item()
-                    batch_count += 1
-            
-            # Print epoch statistics
-            if batch_count > 0:
-                avg_loss = epoch_loss / batch_count
-                print(f"Epoch {epoch+1}/{epochs}, Loss: {avg_loss:.6f}")
-            else:
-                print(f"Epoch {epoch+1}/{epochs}, No valid batches!")
-        
-        print("Training completed!")
-        return self.model
+# Collate function for batching
+def episode_goal_collate_fn(batch):
+    trajs, goal_idxs = zip(*batch)
+    trajs = torch.stack(trajs)  # (batch, seq_len)
+    goal_idxs = torch.tensor(goal_idxs, dtype=torch.long)
+    batch_size, seq_len = trajs.shape
+    timestamps = torch.arange(seq_len, dtype=torch.float).unsqueeze(0).repeat(batch_size, 1)
+    mask = (trajs != 0).float()
+    batch_trajectory_data = {
+        'node_ids': trajs,
+        'timestamps': timestamps,
+        'mask': mask
+    }
+    return batch_trajectory_data, goal_idxs
+
+# Brier score computation
+def brier_score(pred_probs, true_idx):
+    # pred_probs: (batch, num_nodes), true_idx: (batch,)
+    true_onehot = torch.zeros_like(pred_probs)
+    true_onehot[torch.arange(pred_probs.size(0)), true_idx] = 1.0
+    return ((pred_probs - true_onehot) ** 2).sum(dim=1).mean().item()
+
+# -----------------------------
+# Full Training Loop with wandb Logging and Brier Score
+# -----------------------------
+def train_with_real_data_distributional(
+    epochs=25, batch_size=16, log_wandb=True, top_k=5, max_seq_len=100, wandb_log_interval=1, num_workers=2
+):
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print(f"Using device: {device}")
+    if log_wandb:
+        wandb.init(project="tom-graph-causalnet-distributional", config={
+            "epochs": epochs,
+            "batch_size": batch_size,
+            "top_k": top_k,
+            "max_seq_len": max_seq_len
+        })
+
+    # Load data
+    data_loader = CampusDataLoader()
+    path_data = data_loader.path_data
+    goal_data = data_loader.goal_data
+    node_id_mapping = data_loader.node_id_mapping
+    num_nodes = len(node_id_mapping)
+    print(f"Number of unique nodes in the framework: {num_nodes}")
+    graph_data = data_loader.prepare_graph_data()
+    node_feat_dim = graph_data['x'].shape[1]
+
+    # Dataset and DataLoader
+    dataset = EpisodeGoalDataset(path_data, goal_data, node_id_mapping, max_seq_len=max_seq_len)
+    dataloader = DataLoader(
+        dataset,
+        batch_size=batch_size,
+        shuffle=True,
+        num_workers=4,
+        pin_memory=True,
+        collate_fn=episode_goal_collate_fn
+    )
+    print(f"Loaded {len(dataset)} episode-agent samples.")
+
+    # Model setup
+    model = ToMGraphCausalNet(
+        node_feat_dim=node_feat_dim,
+        time_emb_dim=16,
+        hidden_dim=128,
+        latent_dim=32,
+        goal_output_type='node',
+        num_nodes=num_nodes,
+        mdn_components=0
+    ).to(device)
+    model.encoder.trajectory_encoder.node_embedding = nn.Embedding(num_nodes, node_feat_dim).to(device)
+    optimizer = optim.Adam(model.parameters(), lr=1e-3)
+
+    # Training loop
+    print("Starting training loop...")
+    model.train()
+    total_kl, total_recon, total_goal, total_loss, total_brier = 0, 0, 0, 0, 0
+    correct, total, topk_correct = 0, 0, 0
+    num_batches = 0
+    # Move graph_data to device ONCE
+    graph_data_on_device = {k: v.to(device, non_blocking=True) for k, v in graph_data.items()}
+
+    for epoch in range(epochs):
+        print(f"Epoch {epoch+1} start")
+        for batch_idx, (batch_trajectory_data, goal_idxs) in enumerate(dataloader):
+            # Remove or reduce print statements here
+            batch_trajectory_data = {k: v.to(device, non_blocking=True) for k, v in batch_trajectory_data.items()}
+            goal_idxs = goal_idxs.to(device, non_blocking=True)
+            # Use graph_data_on_device, not graph_data
+            latents, fused, goal_logits = model(batch_trajectory_data, graph_data_on_device)
+            # Forward pass
+            # optimizer.zero_grad() # This line is moved up
+            kl_loss = model.latent_vae.total_kl_loss(latents)
+            recon_loss = model.latent_vae.recon_loss(fused, latents)
+            # Cross-entropy loss for one-hot ground truth
+            goal_loss = nn.CrossEntropyLoss()(goal_logits, goal_idxs)
+            loss = kl_loss + recon_loss + goal_loss
+            loss.backward()
+            optimizer.step()
+            total_kl += kl_loss.item()
+            total_recon += recon_loss.item()
+            total_goal += goal_loss.item()
+            total_loss += loss.item()
+            num_batches += 1
+            # Metrics
+            probs = model.goal_head.get_probabilities(goal_logits)
+            top1_pred = torch.argmax(probs, dim=-1)
+            correct += (top1_pred == goal_idxs).sum().item()
+            topk = torch.topk(probs, k=top_k, dim=-1).indices
+            for b in range(goal_idxs.size(0)):
+                if goal_idxs[b].item() in topk[b].tolist():
+                    topk_correct += 1
+            total += goal_idxs.size(0)
+            # Brier score
+            brier = brier_score(probs, goal_idxs)
+            total_brier += brier
+
+            # --- wandb logging for every batch ---
+            if log_wandb:
+                batch_acc = (top1_pred == goal_idxs).float().mean().item()
+                batch_topk_acc = sum([goal_idxs[b].item() in topk[b].tolist() for b in range(goal_idxs.size(0))]) / goal_idxs.size(0)
+                wandb.log({
+                    "brier_score_batch": brier,
+                    "accuracy_batch": batch_acc,
+                    f"top{top_k}_accuracy_batch": batch_topk_acc,
+                    "loss_batch": loss.item()
+                }, commit=False)
+            if log_wandb and (num_batches % wandb_log_interval == 0):
+                import matplotlib.pyplot as plt
+                import io
+                import numpy as np
+                from PIL import Image
+                fig, ax = plt.subplots(1, 1, figsize=(8, 4))
+                gt = torch.zeros(num_nodes)
+                gt[goal_idxs[0].item()] = 1.0
+                pred = probs[0].detach().cpu().numpy()
+                ax.bar(np.arange(len(gt)), gt.numpy(), color='g', alpha=0.5, label='Ground Truth')
+                ax.bar(np.arange(len(pred)), pred, color='b', alpha=0.3, label='Predicted')
+                ax.set_title('Goal Distribution (First Sample in Batch)')
+                ax.set_xlabel('Node Index')
+                ax.set_ylabel('Probability')
+                ax.legend()
+                buf = io.BytesIO()
+                plt.tight_layout()
+                plt.savefig(buf, format='png')
+                buf.seek(0)
+                plt.close(fig)
+                img = Image.open(buf)
+                img_np = np.array(img)
+                wandb.log({"goal_distribution_plot": wandb.Image(img_np)}, commit=False)
+                entropy = -np.sum(pred * np.log(pred + 1e-8))
+                wandb.log({"predicted_goal_entropy": entropy}, commit=False)
+                wandb.log({
+                    "latent_belief": wandb.Histogram(latents['z_belief'].detach().cpu().numpy()),
+                    "latent_desire": wandb.Histogram(latents['z_desire'].detach().cpu().numpy()),
+                    "latent_intention": wandb.Histogram(latents['z_intention'].detach().cpu().numpy()),
+                    "brier_score": brier
+                }, commit=False)
+        acc = correct / total if total > 0 else 0.0
+        topk_acc = topk_correct / total if total > 0 else 0.0
+        avg_brier = total_brier / num_batches if num_batches > 0 else 0.0
+        print(f"Epoch {epoch+1}/{epochs} | KL: {total_kl/num_batches:.4f} | Recon: {total_recon/num_batches:.4f} | Goal: {total_goal/num_batches:.4f} | Total: {total_loss/num_batches:.4f} | Acc: {acc:.4f} | Top-{top_k} Acc: {topk_acc:.4f} | Brier: {avg_brier:.4f}")
+        if log_wandb:
+            wandb.log({
+                "epoch": epoch+1,
+                "kl_loss": total_kl/num_batches,
+                "recon_loss": total_recon/num_batches,
+                "goal_loss": total_goal/num_batches,
+                "total_loss": total_loss/num_batches,
+                "accuracy": acc,
+                f"top{top_k}_accuracy": topk_acc,
+                "brier_score": avg_brier
+            })
+    print("✅ Distributional training completed!")
+    if log_wandb:
+        wandb.finish()
+    torch.save(model.state_dict(), "tom_graph_causalnet_distributional.pth")
+    print("✅ Model saved!")
+
+if __name__ == "__main__":
+    # Set up for distributional goal prediction and hybrid evaluation
+    train_with_real_data_distributional(epochs=25, batch_size=16, log_wandb=True, top_k=5, max_seq_len=100)
