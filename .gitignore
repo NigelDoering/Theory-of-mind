@@ -214,3 +214,5 @@ cache/
 notebooks/data/AIS_data/*
 notebooks/data/trips/*
 notebooks/data/processed_trips/*
+
+stepwise_data.pt
