@@ -189,6 +189,7 @@ notebooks/agents*
 notebooks/data/goal_data*
 notebooks/data/path_data*
 notebooks/extended_btom* 
+notebooks/visuals/
 *.png
 *.gif
 *.pdf
@@ -197,12 +198,8 @@ notebooks/extended_btom*
 
 *.graphml
 *.json
-!data/1k/*.json
-!data/5k/*.json
-
-*.h5
-!data/1k/*.h5
-!data/5k/*.h5
+*.pth
+*.pt
 
 wandb/
 */wandb/
@@ -214,5 +211,3 @@ cache/
 notebooks/data/AIS_data/*
 notebooks/data/trips/*
 notebooks/data/processed_trips/*
-
-stepwise_data.pt
