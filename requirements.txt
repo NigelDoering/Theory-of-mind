@@ -24,6 +24,7 @@ pymc>=5.21.1
 torch>=2.6.0
 torchaudio>=2.6.0
 torchvision>=0.21.0
+torch-geometric>=2.6.1
 
 # JUPYTER DEPENDENCIES
 ipykernel>=6.29.5

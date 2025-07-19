@@ -257,8 +257,7 @@ def train_pipeline(
     print("Model saved as tomnet_pipeline_model.pth")
 
 def main():
-    train_pipeline(epochs=10, batch_size=256, log_wandb=True, max_seq_len=100, top_k=5)
+    train_pipeline(epochs=25, batch_size=256, log_wandb=True, max_seq_len=100, top_k=5)
 
 if __name__ == "__main__":
-    main() 
     main() 
