@@ -97,7 +97,7 @@ def train_pipeline(
     num_nodes = len(node_id_mapping)
 
     # Prepare graph data (only x and edge_index, with pin_memory)
-    graph_cuda_path = 'graph_data_cuda.pt'
+    graph_cuda_path = './data/data_utils/graph_data_cuda.pt'
     if os.path.exists(graph_cuda_path):
         print(f"Loading graph data from {graph_cuda_path}...")
         import time
