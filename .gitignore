@@ -201,6 +201,11 @@ notebooks/visuals/
 *.pth
 *.pt
 
+data/
+*/data/
+
+models/
+
 wandb/
 */wandb/
 
