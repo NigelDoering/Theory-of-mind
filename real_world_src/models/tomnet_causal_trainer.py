@@ -3,12 +3,14 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
 import wandb
+import argparse
 import numpy as np
 import os
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from real_world_src.models.tom_graph_encoder import ToMGraphEncoder, CampusDataLoader
+from real_world_src.models.tomnet_causal_dataloader import CampusDataLoader
+from real_world_src.models.tom_graph_encoder import ToMGraphEncoder
 from real_world_src.models.tom_latent_mind import HierarchicalMindStateVAE
 from real_world_src.models.tom_goal_predictor import GoalPredictorHead
 
@@ -76,9 +78,10 @@ class TomNetCausal(nn.Module):
         return latents, fused, logits
 
 def train_pipeline(
-    epochs=10, batch_size=64, log_wandb=True, max_seq_len=100, top_k=5
+    epochs=10, batch_size=64, log_wandb=True, max_seq_len=100, top_k=5, gpu=0, data_dir="./data/1k/"
 ):
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device = torch.device(f'cuda:{gpu}' if torch.cuda.is_available() else 'cpu')
+    print(f"Using device: {device}")
     if log_wandb:
         wandb.init(project="tom-graph-causalnet-distributional", config={
             "epochs": epochs,
@@ -86,7 +89,7 @@ def train_pipeline(
             "max_seq_len": max_seq_len
         })
     # Load data
-    data_loader = CampusDataLoader()
+    data_loader = CampusDataLoader(data_dir=data_dir)
     # print("Done campus data loader")
     path_data = data_loader.path_data
     goal_data = data_loader.goal_data
@@ -95,7 +98,6 @@ def train_pipeline(
 
     # Prepare graph data (only x and edge_index, with pin_memory)
     graph_cuda_path = 'graph_data_cuda.pt'
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     if os.path.exists(graph_cuda_path):
         print(f"Loading graph data from {graph_cuda_path}...")
         import time
@@ -253,11 +255,24 @@ def train_pipeline(
             model.train()
     if log_wandb:
         wandb.finish()
-    torch.save(model.state_dict(), "tomnet_causal_model.pth")
-    print("Model saved as tomnet_pipeline_model.pth")
+    model_save_path = f"./trained_models/tomnet_causal_model_{os.path.basename(data_dir).replace('/', '_')}.pth"
+    os.makedirs(os.path.dirname(model_save_path), exist_ok=True)
+
+    torch.save(model.state_dict(), model_save_path)
+    print(f"Model saved as {model_save_path}")
 
 def main():
-    train_pipeline(epochs=25, batch_size=256, log_wandb=True, max_seq_len=100, top_k=5)
+    parser = argparse.ArgumentParser(description="Train TomNet Causal Model")
+    parser.add_argument("--epochs", type=int, default=25, help="Number of training epochs")
+    parser.add_argument("--batch_size", type=int, default=1024, help="Batch size for training")
+    parser.add_argument("--log_wandb", action='store_true', help="Log metrics to Weights & Biases")
+    parser.add_argument("--max_seq_len", type=int, default=100, help="Maximum sequence length for trajectories")
+    parser.add_argument("--top_k", type=int, default=5, help="Top-k accuracy to compute")
+    parser.add_argument("--gpu", type=int, default=0, help="Specify GPU to use, e.g., '0' for cuda:0")
+    parser.add_argument("--data_dir", type=str, default="./data/1k/", help="Directory for the dataset")
+
+    args = parser.parse_args()
+    train_pipeline(epochs=args.epochs, batch_size=args.batch_size, log_wandb=args.log_wandb, max_seq_len=args.max_seq_len, top_k=args.top_k, gpu=args.gpu)
 
 if __name__ == "__main__":
     main() 

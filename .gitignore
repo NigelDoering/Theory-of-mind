@@ -204,7 +204,7 @@ notebooks/visuals/
 data/
 */data/
 
-models/
+trained_models/
 
 wandb/
 */wandb/
