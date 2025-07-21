@@ -9,7 +9,7 @@ project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-data_dir = os.path.join(project_root, 'data/5k')
+data_dir = os.path.join(project_root, 'data/500')
 os.makedirs(data_dir, exist_ok=True)
 agents_path = os.path.join(data_dir, 'agents.pkl')
 path_data_path = os.path.join(data_dir, 'path_data.json')
@@ -78,7 +78,7 @@ def main_json():
     # Generate data for each agent
     path_data = {}
     goal_data = {}
-    n_episodes = 5000
+    n_episodes = 500
 
     # Write to file in chunks to avoid memory issues
     chunk_size = 10000
@@ -190,5 +190,5 @@ def main_h5():
     print(f"Data generation completed. {n_episodes} episodes generated.")
 
 if __name__ == "__main__":
-    main_h5()
+    # main_h5()
     main_json()

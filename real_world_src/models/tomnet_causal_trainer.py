@@ -78,7 +78,7 @@ class TomNetCausal(nn.Module):
         return latents, fused, logits
 
 def train_pipeline(
-    epochs=10, batch_size=64, log_wandb=True, max_seq_len=100, top_k=5, gpu=0, data_dir="./data/1k/", node_mapping_path=None, save_node_mapping_path=None, save_model=False
+    epochs=10, batch_size=64, log_wandb=True, max_seq_len=100, top_k=5, gpu=0, data_dir="./data/1k/", node_mapping_path=None, save_node_mapping_path=None, save_model=False, model_save_name="node_mapped_tomnet_causal_model.pth"
 ):
     device = torch.device(f'cuda:{gpu}' if torch.cuda.is_available() else 'cpu')
     print(f"Using device: {device}")
@@ -103,7 +103,9 @@ def train_pipeline(
         import time
         t0 = time.time()
         graph_data_on_device = torch.load(graph_cuda_path)
-        print(f"Loaded graph_data_cuda.pt in {time.time() - t0:.2f} seconds")
+        # Move loaded graph data to the correct device
+        graph_data_on_device = {k: v.to(device, non_blocking=True) for k, v in graph_data_on_device.items()}
+        print(f"Loaded graph_data_cuda.pt and moved to {device} in {time.time() - t0:.2f} seconds")
         # Do not reference graph_data here
     else:
         print("Done graph data, starting with pt dataset")
@@ -255,7 +257,9 @@ def train_pipeline(
             model.train()
     if log_wandb:
         wandb.finish()
-    model_save_path = f"./trained_models/tomnet_causal_model_{os.path.basename(data_dir).replace('/', '_')}.pth"
+    # model_save_path = f"./trained_models/node_mapped_tomnet_causal_model_{os.path.basename(data_dir).replace('/', '_')}.pth"
+    # model_save_path = f"./trained_models/{model_save_name}_{os.path.basename(data_dir).replace('/', '_')}.pth"
+    model_save_path = f"./trained_models/{model_save_name}.pth"
     os.makedirs(os.path.dirname(model_save_path), exist_ok=True)
     if save_model:
         torch.save(model.state_dict(), model_save_path)
@@ -274,9 +278,20 @@ def main():
     parser.add_argument("--node_mapping_path", type=str, help="Path to load existing node mapping (for incremental training)")
     parser.add_argument("--save_node_mapping_path", type=str, default="./data/1k/node_mapping.pkl", help="Path to save node mapping after training")
     parser.add_argument("--save_model", action='store_true', help="Save the model in trained_models/")
+    parser.add_argument("--model_save_name", type=str, default="node_mapped_tomnet_causal_model", help="Path to save the trained model")
     
     args = parser.parse_args()
-    train_pipeline(epochs=args.epochs, batch_size=args.batch_size, log_wandb=args.log_wandb, max_seq_len=args.max_seq_len, top_k=args.top_k, gpu=args.gpu, data_dir=args.data_dir, node_mapping_path=args.node_mapping_path, save_node_mapping_path=args.save_node_mapping_path)
+    train_pipeline(epochs=args.epochs, 
+                   batch_size=args.batch_size, 
+                   log_wandb=args.log_wandb, 
+                   max_seq_len=args.max_seq_len, 
+                   top_k=args.top_k, 
+                   gpu=args.gpu, 
+                   data_dir=args.data_dir, 
+                   node_mapping_path=args.node_mapping_path, 
+                   save_node_mapping_path=args.save_node_mapping_path, 
+                   save_model=args.save_model,
+                   model_save_name=args.model_save_name)
 
 if __name__ == "__main__":
     main() 
