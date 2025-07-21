@@ -78,7 +78,7 @@ class TomNetCausal(nn.Module):
         return latents, fused, logits
 
 def train_pipeline(
-    epochs=10, batch_size=64, log_wandb=True, max_seq_len=100, top_k=5, gpu=0, data_dir="./data/1k/"
+    epochs=10, batch_size=64, log_wandb=True, max_seq_len=100, top_k=5, gpu=0, data_dir="./data/1k/", node_mapping_path=None, save_node_mapping_path=None, save_model=False
 ):
     device = torch.device(f'cuda:{gpu}' if torch.cuda.is_available() else 'cpu')
     print(f"Using device: {device}")
@@ -89,7 +89,7 @@ def train_pipeline(
             "max_seq_len": max_seq_len
         })
     # Load data
-    data_loader = CampusDataLoader(data_dir=data_dir)
+    data_loader = CampusDataLoader(data_dir=data_dir, node_mapping_path=node_mapping_path, save_node_mapping_path=save_node_mapping_path, mode='train')
     # print("Done campus data loader")
     path_data = data_loader.path_data
     goal_data = data_loader.goal_data
@@ -257,9 +257,10 @@ def train_pipeline(
         wandb.finish()
     model_save_path = f"./trained_models/tomnet_causal_model_{os.path.basename(data_dir).replace('/', '_')}.pth"
     os.makedirs(os.path.dirname(model_save_path), exist_ok=True)
+    if save_model:
+        torch.save(model.state_dict(), model_save_path)
+        print(f"Model saved as {model_save_path}")
 
-    torch.save(model.state_dict(), model_save_path)
-    print(f"Model saved as {model_save_path}")
 
 def main():
     parser = argparse.ArgumentParser(description="Train TomNet Causal Model")
@@ -270,9 +271,12 @@ def main():
     parser.add_argument("--top_k", type=int, default=5, help="Top-k accuracy to compute")
     parser.add_argument("--gpu", type=int, default=0, help="Specify GPU to use, e.g., '0' for cuda:0")
     parser.add_argument("--data_dir", type=str, default="./data/1k/", help="Directory for the dataset")
-
+    parser.add_argument("--node_mapping_path", type=str, help="Path to load existing node mapping (for incremental training)")
+    parser.add_argument("--save_node_mapping_path", type=str, default="./data/1k/node_mapping.pkl", help="Path to save node mapping after training")
+    parser.add_argument("--save_model", action='store_true', help="Save the model in trained_models/")
+    
     args = parser.parse_args()
-    train_pipeline(epochs=args.epochs, batch_size=args.batch_size, log_wandb=args.log_wandb, max_seq_len=args.max_seq_len, top_k=args.top_k, gpu=args.gpu)
+    train_pipeline(epochs=args.epochs, batch_size=args.batch_size, log_wandb=args.log_wandb, max_seq_len=args.max_seq_len, top_k=args.top_k, gpu=args.gpu, data_dir=args.data_dir, node_mapping_path=args.node_mapping_path, save_node_mapping_path=args.save_node_mapping_path)
 
 if __name__ == "__main__":
     main() 

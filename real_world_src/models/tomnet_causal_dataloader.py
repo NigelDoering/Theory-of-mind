@@ -15,8 +15,7 @@ class CampusDataLoader:
     """
     Loads and prepares data from the campus environment and trajectory files.
     """
-    def __init__(self, data_dir="./data/1k/"):
-
+    def __init__(self, data_dir="./data/1k/", node_mapping_path=None, save_node_mapping_path=None, mode='train'):
         self.data_dir = data_dir
         self.env = None
         self.agents = None
@@ -24,7 +23,9 @@ class CampusDataLoader:
         self.goal_data = None
         self.node_id_mapping = {}  # Map OSM node IDs to sequential indices
         self.reverse_node_mapping = {}  # Map sequential indices back to OSM node IDs
-        
+        self.node_mapping_path = node_mapping_path
+        self.save_node_mapping_path = save_node_mapping_path
+        self.mode = mode
         # Load data
         self._load_data()
         self._build_node_mapping()
@@ -50,27 +51,48 @@ class CampusDataLoader:
         print(f"Goal data keys: {len(self.goal_data)}")
     
     def _build_node_mapping(self):
-        """Build mapping from OSM node IDs to sequential indices."""
-        print("Building node ID mapping...")
-        
-        # Collect all unique node IDs from path data
+        """Build or update mapping from OSM node IDs to sequential indices."""
+        mapping_exists = self.node_mapping_path and os.path.exists(self.node_mapping_path)
+        if mapping_exists:
+            print(f"Loading node_id_mapping from {self.node_mapping_path}")
+            with open(self.node_mapping_path, 'rb') as f:
+                mapping = pickle.load(f)
+                self.node_id_mapping = mapping['node_id_mapping']
+                self.reverse_node_mapping = mapping['reverse_node_mapping']
+            print(f"Loaded node_id_mapping with {len(self.node_id_mapping)} nodes.")
+        else:
+            print("No existing node_id_mapping found. Initializing new mapping.")
+            self.node_id_mapping = {}
+            self.reverse_node_mapping = {}
+        # Collect all unique node IDs from path data and environment
         all_node_ids = set()
         if self.path_data is not None:
             for agent_data in self.path_data.values():
                 for segment in agent_data.values():
                     if isinstance(segment, list):
                         all_node_ids.update(segment)
-        
-        # Also add nodes from the environment graph
         if self.env is not None:
             all_node_ids.update(self.env.G.nodes())
-        
-        # Create mapping
-        for i, node_id in enumerate(sorted(all_node_ids)):
-            self.node_id_mapping[node_id] = i
-            self.reverse_node_mapping[i] = node_id
-        
-        print(f"Mapped {len(self.node_id_mapping)} unique nodes")
+        # In train mode, add new nodes to the mapping
+        if self.mode == 'train':
+            max_idx = max(self.node_id_mapping.values(), default=-1)
+            for node_id in sorted(all_node_ids):
+                if node_id not in self.node_id_mapping:
+                    max_idx += 1
+                    self.node_id_mapping[node_id] = max_idx
+                    self.reverse_node_mapping[max_idx] = node_id
+            print(f"[TRAIN] Updated node_id_mapping to {len(self.node_id_mapping)} nodes.")
+            # Save the updated mapping
+            if self.save_node_mapping_path:
+                print(f"Saving node_id_mapping to {self.save_node_mapping_path}")
+                with open(self.save_node_mapping_path, 'wb') as f:
+                    pickle.dump({
+                        'node_id_mapping': self.node_id_mapping,
+                        'reverse_node_mapping': self.reverse_node_mapping
+                    }, f)
+        else:
+            # In eval mode, do not add new nodes, just use the loaded mapping
+            print(f"[EVAL] Using fixed node_id_mapping with {len(self.node_id_mapping)} nodes.")
         print(f"Node ID range: {min(self.node_id_mapping.keys())} to {max(self.node_id_mapping.keys())}")
         print(f"Sequential range: 0 to {len(self.node_id_mapping) - 1}")
     
