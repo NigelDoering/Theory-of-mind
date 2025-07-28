@@ -53,6 +53,7 @@ class TomNetCausal(nn.Module):
     def __init__(self, node_feat_dim, num_nodes, time_emb_dim=16, hidden_dim=128, latent_dim=32, n_layers=2, n_heads=4, dropout=0.1, use_gat=True):
         super().__init__()
         self.encoder = ToMGraphEncoder(
+            num_nodes=num_nodes,
             node_feat_dim=node_feat_dim,
             time_emb_dim=time_emb_dim,
             hidden_dim=hidden_dim,
@@ -97,7 +98,9 @@ def train_pipeline(
     num_nodes = len(node_id_mapping)
 
     # Prepare graph data (only x and edge_index, with pin_memory)
-    graph_cuda_path = './data/data_utils/graph_data_cuda.pt'
+    data_utils_dir = os.path.join(os.path.dirname(data_dir), 'data_utils')
+    os.makedirs(data_utils_dir, exist_ok=True)
+    graph_cuda_path = os.path.join(data_utils_dir, 'graph_data_cuda.pt')
     if os.path.exists(graph_cuda_path):
         print(f"Loading graph data from {graph_cuda_path}...")
         import time

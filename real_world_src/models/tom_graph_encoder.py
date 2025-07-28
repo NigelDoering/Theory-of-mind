@@ -22,14 +22,14 @@ class TrajectoryEncoder(nn.Module):
     """
     Encodes an agent's trajectory (sequence of node indices and times) using a Transformer.
     """
-    def __init__(self, node_feat_dim, time_emb_dim, hidden_dim, n_layers=2, n_heads=4, dropout=0.1):
+    def __init__(self, num_nodes, node_feat_dim, time_emb_dim, hidden_dim, n_layers=2, n_heads=4, dropout=0.1):
         super().__init__()
         self.node_feat_dim = node_feat_dim
         self.time_emb_dim = time_emb_dim
         self.hidden_dim = hidden_dim
         
         # Node embedding layer
-        self.node_embedding = nn.Embedding(100000, node_feat_dim)  # Large enough for OSM node IDs
+        self.node_embedding = nn.Embedding(num_nodes, node_feat_dim)
         
         # Time embedding using sinusoidal encoding
         self.time_embedding = nn.Linear(1, time_emb_dim)
@@ -153,11 +153,12 @@ class ToMGraphEncoder(nn.Module):
     """
     Combined encoder that processes both trajectory and world graph data.
     """
-    def __init__(self, node_feat_dim, time_emb_dim, hidden_dim, n_layers=2, n_heads=4, dropout=0.1, use_gat=True):
+    def __init__(self, num_nodes, node_feat_dim, time_emb_dim, hidden_dim, n_layers=2, n_heads=4, dropout=0.1, use_gat=True):
         super().__init__()
         
         # Trajectory encoder
         self.trajectory_encoder = TrajectoryEncoder(
+            num_nodes=num_nodes,
             node_feat_dim=node_feat_dim,
             time_emb_dim=time_emb_dim,
             hidden_dim=hidden_dim,
@@ -239,6 +240,7 @@ def main():
     
     # Initialize encoder
     encoder = ToMGraphEncoder(
+        num_nodes=len(data_loader.node_id_mapping),  # Number of unique nodes
         node_feat_dim=4,  # 2 coords + 2 padding features
         time_emb_dim=16,
         hidden_dim=128,

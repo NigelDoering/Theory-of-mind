@@ -122,7 +122,10 @@ def main():
     goal_data = data_loader.goal_data
     node_id_mapping = data_loader.node_id_mapping
     num_nodes = len(node_id_mapping)
-    graph_cuda_path = './data/data_utils/graph_data_cuda.pt'
+    # Create data_utils directory if it doesn't exist
+    data_utils_dir = os.path.join(os.path.dirname(args.data_dir), 'data_utils')
+    os.makedirs(data_utils_dir, exist_ok=True)
+    graph_cuda_path = os.path.join(data_utils_dir, 'graph_data_cuda.pt')
     if os.path.exists(graph_cuda_path):
         graph_data_on_device = torch.load(graph_cuda_path)
     else:
