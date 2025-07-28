@@ -112,3 +112,19 @@ def predict_goal_posterior(model, path, node2idx, goal2idx, device):
         probs = model.predict_goal_distribution(path_idx).squeeze(0).cpu().numpy()  # (num_goals,)
     idx2goal = {v: k for k, v in goal2idx.items()}
     return {idx2goal[i]: float(probs[i]) for i in range(len(probs))}
+
+def predict_goal_posteriors_along_path(model, path, node2idx, goal2idx, device):
+    """
+    For a given path, returns a list of posterior distributions over goals for each prefix.
+    Each element is a dict mapping goal IDs to probabilities.
+    """
+    model.eval()
+    idx2goal = {v: k for k, v in goal2idx.items()}
+    posteriors = []
+    with torch.no_grad():
+        for t in range(1, len(path)+1):
+            prefix = path[:t]
+            path_idx = torch.tensor([[node2idx[n] for n in prefix]], dtype=torch.long).to(device)
+            probs = model.predict_goal_distribution(path_idx).squeeze(0).cpu().numpy()
+            posteriors.append({idx2goal[i]: float(probs[i]) for i in range(len(probs))})
+    return posteriors

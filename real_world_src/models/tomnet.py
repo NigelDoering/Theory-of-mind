@@ -299,7 +299,7 @@ def infer_goal_dists(
             prefix_len = torch.tensor([prefix_len], dtype=torch.long, device=device)
 
             # forward through ToMNet
-            _, goal_logits = model(sup, prefix, prefix_len)   # [1, num_goals]
+            _, goal_logits, *_ = model(sup, prefix, prefix_len)   # [1, num_goals] # To match the number of outputs of model
             p_goal = F.softmax(goal_logits, dim=-1)[0]        # remove batch‐dim → [num_goals]
 
             goal_dists.append(p_goal.cpu().numpy())

@@ -196,7 +196,7 @@ notebooks/visuals/
 
 *.DS_Store
 
-*.graphml
+
 *.json
 *.pth
 *.pt

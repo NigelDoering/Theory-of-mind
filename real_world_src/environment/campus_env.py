@@ -22,9 +22,22 @@ class CampusEnvironment:
         
         # Load the map data
         self.place_name = place_name
-        print(f"Loading map data for {place_name}...")
-        self.G = ox.graph_from_place(place_name, network_type="all")
+        ##### PATH to graphml file #####
+        # This file should be in the same directory as this script or provide a full path
+        # If the file does not exist, it will be downloaded and saved
+        graphml_path = "ucsd_campus.graphml"
+        if os.path.exists(graphml_path):
+            print(f"Loading graph from {graphml_path}...")
+            self.G = ox.load_graphml(graphml_path)
+        else:
+            print(f"GraphML file not found. Downloading map data for {place_name}...")
+            self.G = ox.graph_from_place(place_name, network_type="all")
+            ox.save_graphml(self.G, filepath=graphml_path)
         self.G_undirected = nx.Graph(self.G)
+
+        #print(f"Loading map data for {place_name}...")
+        #self.G = ox.graph_from_place(place_name, network_type="all")
+        #self.G_undirected = nx.Graph(self.G)
         
         
         # Save the graph for future use
