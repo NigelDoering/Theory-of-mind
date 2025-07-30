@@ -177,8 +177,12 @@ class CampusDataLoader:
                 edge_list.append([node_mapping[u], node_mapping[v]])
                 edge_list.append([node_mapping[v], node_mapping[u]])  # Undirected graph
         # Convert to tensors with pin_memory
-        x = torch.tensor(node_features, dtype=torch.float).pin_memory()
-        edge_index = torch.tensor(edge_list, dtype=torch.long).pin_memory().t().contiguous()
+        x = torch.tensor(node_features, dtype=torch.float)
+        edge_index = torch.tensor(edge_list, dtype=torch.long).t().contiguous()
+
+        if device.type == "cuda":
+            x = x.pin_memory()
+            edge_index = edge_index.pin_memory()
         graph_data = {'x': x, 'edge_index': edge_index}
         # Optionally move to device and save
         if save_cuda_path and device is not None:
