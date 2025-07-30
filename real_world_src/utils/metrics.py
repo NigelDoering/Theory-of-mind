@@ -95,6 +95,9 @@ def accuracy_along_path(path, true_goal, posteriors_by_step, goals):
                 post = posteriors_by_step[t-1]
             # find all goals achieving the max
             maxp = max(post.values())
+
+            true_goal = str(true_goal) # Dict stores ids as strings
+
             # if true_goal is one of the maxima, count as correct
             accs.append(1.0 if post[true_goal] >= maxp else 0.0)
 
