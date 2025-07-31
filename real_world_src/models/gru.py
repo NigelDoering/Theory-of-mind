@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset
+from tqdm import tqdm 
 
 class SimpleGRU(nn.Module):
     """

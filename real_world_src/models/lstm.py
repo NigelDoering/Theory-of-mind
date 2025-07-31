@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from tqdm import tqdm
 
 class SimpleLSTM(nn.Module):
     """
@@ -37,7 +38,7 @@ def train_lstm_model(model, dataloader, optimizer, device, num_epochs=10):
     """
     model.train()
     criterion = nn.CrossEntropyLoss()
-    for epoch in range(num_epochs):
+    for epoch in tqdm(range(num_epochs)):
         total_loss = 0
         for path_idxs, goal_idx in dataloader:
             path_idxs = path_idxs.to(device)
